@@ -40,16 +40,6 @@ type TonicLock = {
   version: 1;
 };
 
-type CompiledContext = {
-  artifact: string;
-  requirements: Array<{
-    fingerprint: string;
-    id: string;
-    source: string;
-  }>;
-  version: 1;
-};
-
 class TonicWorld {
   projectDirectory = "";
   result?: SpawnSyncReturns<string>;
@@ -326,25 +316,11 @@ Given(
 );
 
 Then(
-  "compiled context for {string} links to requirement {string}",
-  async function (this: TonicWorld, artifactPath: string, requirementId: string) {
-    const context = (await readJson(
-      join(this.projectDirectory, ".tonic", "compiled", `${artifactPath}.json`),
-    )) as CompiledContext;
+  "the command returns the current Gherkin for requirement {string}",
+  async function (this: TonicWorld, requirementId: string) {
     const source = `features/${requirementId}.feature`;
     const feature = await readFile(join(this.projectDirectory, source), "utf8");
-
-    assert.deepEqual(context, {
-      artifact: artifactPath,
-      requirements: [
-        {
-          fingerprint: fingerprint(feature),
-          id: requirementId,
-          source,
-        },
-      ],
-      version: 1,
-    });
+    assert.ok(commandOutput(this).includes(feature.trim()));
   },
 );
 

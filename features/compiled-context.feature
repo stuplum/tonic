@@ -7,7 +7,9 @@ Feature: Compile executable requirements into implementation context
     And executable requirement "PAY-001" exercises "src/payment.ts"
     When I run "tonic test"
     Then the command succeeds
-    And compiled context for "src/payment.ts" links to requirement "PAY-001"
+    When I run "tonic context src/payment.ts"
+    Then the command succeeds
+    And the command returns the current Gherkin for requirement "PAY-001"
     And no manual requirement links are configured
 
   Scenario: A changed requirement invalidates its discovered implementation context
