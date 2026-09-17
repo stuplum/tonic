@@ -48,3 +48,25 @@ Feature: Reconsider artifacts affected by a changed requirement
     When I run "tonic add PAY-001 --source features/PAY-001.feature --affects src/missing.ts"
     Then the command fails
     And the command reports that "src/missing.ts" does not exist
+
+  Scenario: Run executable requirements without installing Cucumber separately
+    Given an initialised project
+    And a passing executable requirement in the default feature directory
+    When I run "tonic test"
+    Then the command succeeds
+    And the executable requirement ran
+
+  Scenario: Fail when an executable requirement is not satisfied
+    Given an initialised project
+    And a failing executable requirement in the default feature directory
+    When I run "tonic test"
+    Then the command fails
+    And the command reports that the executable requirement failed
+
+  Scenario: Run executable requirements from configured paths
+    Given an initialised project
+    And Tonic is configured to find features in "specifications" and steps in "specifications/support"
+    And a passing executable requirement exists in the configured directories
+    When I run "tonic test"
+    Then the command succeeds
+    And the executable requirement ran

@@ -5,6 +5,7 @@ import {
   mkdir,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -208,6 +209,77 @@ Then(
   },
 );
 
+Given(
+  "a passing executable requirement in the default feature directory",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeExecutableRequirement({
+      featureDirectory: "features",
+      passing: true,
+      projectDirectory: this.projectDirectory,
+      stepsDirectory: "features/step_definitions",
+    });
+  },
+);
+
+Given(
+  "a failing executable requirement in the default feature directory",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeExecutableRequirement({
+      featureDirectory: "features",
+      passing: false,
+      projectDirectory: this.projectDirectory,
+      stepsDirectory: "features/step_definitions",
+    });
+  },
+);
+
+Given(
+  "Tonic is configured to find features in {string} and steps in {string}",
+  async function (
+    this: TonicWorld,
+    featureDirectory: string,
+    stepsDirectory: string,
+  ) {
+    const configuration = emptyConfiguration() as TonicConfiguration & {
+      cucumber: { features: string[]; steps: string[] };
+    };
+    configuration.cucumber = {
+      features: [`${featureDirectory}/**/*.feature`],
+      steps: [`${stepsDirectory}/**/*.ts`],
+    };
+    await writeJson(join(this.projectDirectory, "tonic.json"), configuration);
+  },
+);
+
+Given(
+  "a passing executable requirement exists in the configured directories",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeExecutableRequirement({
+      featureDirectory: "specifications",
+      passing: true,
+      projectDirectory: this.projectDirectory,
+      stepsDirectory: "specifications/support",
+    });
+  },
+);
+
+Then("the executable requirement ran", async function (this: TonicWorld) {
+  assert.equal(
+    await readFile(join(this.projectDirectory, "requirement-ran.txt"), "utf8"),
+    "yes\n",
+  );
+});
+
+Then(
+  "the command reports that the executable requirement failed",
+  function (this: TonicWorld) {
+    assert.match(commandOutput(this), /the requirement is satisfied/);
+  },
+);
+
 After(async function (this: TonicWorld) {
   if (this.projectDirectory) {
     await rm(this.projectDirectory, { force: true, recursive: true });
@@ -265,4 +337,59 @@ async function readJson(path: string) {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function linkTonicPackage({
+  projectDirectory,
+}: {
+  projectDirectory: string;
+}) {
+  const nodeModulesDirectory = join(projectDirectory, "node_modules");
+  await mkdir(nodeModulesDirectory, { recursive: true });
+  await symlink(resolve("."), join(nodeModulesDirectory, "tonic"), "dir");
+}
+
+async function writeExecutableRequirement({
+  featureDirectory,
+  passing,
+  projectDirectory,
+  stepsDirectory,
+}: {
+  featureDirectory: string;
+  passing: boolean;
+  projectDirectory: string;
+  stepsDirectory: string;
+}) {
+  await writeProjectFile({
+    content: [
+      "Feature: Execute a requirement",
+      "  Scenario: Run through bundled Cucumber",
+      "    Given the bundled runner is available",
+      "    Then the requirement is satisfied",
+      "",
+    ].join("\n"),
+    projectDirectory,
+    relativePath: `${featureDirectory}/example.feature`,
+  });
+  await writeProjectFile({
+    content: [
+      'import assert from "node:assert/strict";',
+      'import { writeFile } from "node:fs/promises";',
+      'import { Given, Then } from "tonic/cucumber";',
+      "",
+      "let runnerAvailable: boolean = false;",
+      "",
+      'Given("the bundled runner is available", function () {',
+      "  runnerAvailable = true;",
+      "});",
+      "",
+      'Then("the requirement is satisfied", async function () {',
+      `  assert.equal(runnerAvailable, ${passing});`,
+      '  await writeFile("requirement-ran.txt", "yes\\n", "utf8");',
+      "});",
+      "",
+    ].join("\n"),
+    projectDirectory,
+    relativePath: `${stepsDirectory}/example.steps.ts`,
+  });
 }
