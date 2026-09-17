@@ -15,10 +15,10 @@ tonic init
 Link an executable requirement to the files that should be reconsidered when it changes:
 
 ```sh
-tonic add KIP-081 \
-  --source features/KIP-081-local-verification-fixtures.feature \
-  --affects apps/public/src/utils/verifier.ts \
-  --affects libs/services/verifier/src/fixture-verifier.ts
+tonic add PAY-001 \
+  --source features/PAY-001-take-payment.feature \
+  --affects src/payment.ts \
+  --affects src/payment-gateway.ts
 ```
 
 Run the required attention check before an agent implements a feature and in CI:
@@ -30,19 +30,46 @@ tonic check
 An unchanged repository exits successfully without output. A changed requirement exits unsuccessfully and lists the affected files to reconsider:
 
 ```text
-KIP-081 changed.
+PAY-001 changed.
 Reconsider:
-- apps/public/src/utils/verifier.ts
-- libs/services/verifier/src/fixture-verifier.ts
+- src/payment.ts
+- src/payment-gateway.ts
 ```
 
 After the current requirement and every affected file have been reconsidered, record the reviewed version:
 
 ```sh
-tonic acknowledge KIP-081
+tonic acknowledge PAY-001
 ```
 
 `acknowledge` is the end of the review, not a way to silence `check` before reviewing the change.
+
+Run the repository's executable requirements with the Cucumber runtime bundled by Tonic:
+
+```sh
+tonic test
+```
+
+By default, Tonic loads `features/**/*.feature` and
+`features/step_definitions/**/*.ts`. Step definitions import Cucumber from the
+package supplied by Tonic:
+
+```ts
+import { Given, Then, When } from "tonic/cucumber";
+```
+
+Repositories can override the paths in `tonic.json`:
+
+```json
+{
+  "version": 1,
+  "requirements": {},
+  "cucumber": {
+    "features": ["specifications/**/*.feature"],
+    "steps": ["specifications/support/**/*.ts"]
+  }
+}
+```
 
 ## Repository files
 
@@ -58,3 +85,18 @@ pnpm test
 pnpm typecheck
 pnpm pack --dry-run
 ```
+
+Link a development checkout into a consumer without changing the consumer's
+package manifest:
+
+```sh
+cd /path/to/tonic
+npm link
+
+cd /path/to/consumer
+npm link --no-save --package-lock=false tonic
+```
+
+`npm link` runs Tonic's `prepare` script, so `dist` is rebuilt before the link
+is used. The consumer can then invoke `tonic` from its existing package or Nx
+scripts.

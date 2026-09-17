@@ -6,6 +6,7 @@ import {
   findChangedRequirements,
   initializeRepository,
 } from "./repository.js";
+import { runExecutableRequirements } from "./executable-requirements.js";
 
 try {
   await run({ arguments: process.argv.slice(2), projectDirectory: process.cwd() });
@@ -38,8 +39,12 @@ async function run({
     case "acknowledge":
       await runAcknowledge({ commandArguments, projectDirectory });
       return;
+    case "test":
+      requireNoArguments({ command, commandArguments });
+      await runTests({ projectDirectory });
+      return;
     default:
-      throw new Error("Usage: tonic <init|add|check|acknowledge>");
+      throw new Error("Usage: tonic <init|add|check|acknowledge|test>");
   }
 }
 
@@ -97,6 +102,14 @@ async function runAcknowledge({
   }
 
   await acknowledgeRequirement({ projectDirectory, requirementId });
+}
+
+async function runTests({ projectDirectory }: { projectDirectory: string }) {
+  const success = await runExecutableRequirements({ projectDirectory });
+
+  if (!success) {
+    process.exitCode = 1;
+  }
 }
 
 function parseAddOptions(options: string[]) {

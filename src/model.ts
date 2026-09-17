@@ -3,7 +3,13 @@ export type RequirementLink = {
   source: string;
 };
 
+export type CucumberConfiguration = {
+  features?: string[];
+  steps?: string[];
+};
+
 export type TonicConfiguration = {
+  cucumber?: CucumberConfiguration;
   requirements: Record<string, RequirementLink>;
   version: 1;
 };

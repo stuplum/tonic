@@ -172,7 +172,7 @@ async function fingerprintProjectFile({
   return calculateFingerprint(content);
 }
 
-async function readConfiguration({
+export async function readConfiguration({
   projectDirectory,
 }: {
   projectDirectory: string;

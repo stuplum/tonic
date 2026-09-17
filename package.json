@@ -3,6 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./cucumber": {
+      "types": "./dist/cucumber.d.ts",
+      "default": "./dist/cucumber.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "tonic": "./dist/cli.js"
   },
@@ -11,13 +28,19 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "pretest": "pnpm build",
     "test": "cucumber-js --import 'features/step_definitions/**/*.ts'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm test"
+  },
+  "dependencies": {
+    "@cucumber/cucumber": "^12.2.0",
+    "tsx": "^4.20.0"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^12.2.0",
     "@types/node": "^24.0.0",
     "typescript": "^5.9.0"
-  }
+  },
+  "sideEffects": false
 }
