@@ -1,0 +1,23 @@
+{
+  "name": "tonic",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "tonic": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "pretest": "pnpm build",
+    "test": "cucumber-js --import 'features/step_definitions/**/*.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.2.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
