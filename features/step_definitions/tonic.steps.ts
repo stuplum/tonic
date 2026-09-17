@@ -40,6 +40,16 @@ type TonicLock = {
   version: 1;
 };
 
+type CompiledContext = {
+  artifact: string;
+  requirements: Array<{
+    fingerprint: string;
+    id: string;
+    source: string;
+  }>;
+  version: 1;
+};
+
 class TonicWorld {
   projectDirectory = "";
   result?: SpawnSyncReturns<string>;
@@ -265,6 +275,85 @@ Given(
     });
   },
 );
+
+Given(
+  "executable requirement {string} exercises {string}",
+  async function (this: TonicWorld, requirementId: string, artifactPath: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        `@${requirementId}`,
+        "Feature: Take a payment",
+        "  Scenario: Complete an accepted payment",
+        "    When the customer pays 10 pounds",
+        "    Then the payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: `features/${requirementId}.feature`,
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment(amount: number) {",
+        '  return amount > 0 ? "accepted" : "declined";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: artifactPath,
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { When, Then } from "tonic/cucumber";',
+        'import { takePayment } from "../../src/payment.ts";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays 10 pounds", function () {',
+        "  result = takePayment(10);",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Then(
+  "compiled context for {string} links to requirement {string}",
+  async function (this: TonicWorld, artifactPath: string, requirementId: string) {
+    const context = (await readJson(
+      join(this.projectDirectory, ".tonic", "compiled", `${artifactPath}.json`),
+    )) as CompiledContext;
+    const source = `features/${requirementId}.feature`;
+    const feature = await readFile(join(this.projectDirectory, source), "utf8");
+
+    assert.deepEqual(context, {
+      artifact: artifactPath,
+      requirements: [
+        {
+          fingerprint: fingerprint(feature),
+          id: requirementId,
+          source,
+        },
+      ],
+      version: 1,
+    });
+  },
+);
+
+Then("no manual requirement links are configured", async function (this: TonicWorld) {
+  const configuration = (await readJson(
+    join(this.projectDirectory, "tonic.json"),
+  )) as TonicConfiguration;
+  assert.deepEqual(configuration.requirements, {});
+});
 
 Then("the executable requirement ran", async function (this: TonicWorld) {
   assert.equal(
