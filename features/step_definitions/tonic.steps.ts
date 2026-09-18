@@ -119,10 +119,13 @@ Given(
 Given(
   "requirement {string} has changed",
   async function (this: TonicWorld, requirementId: string) {
+    const path = `features/${requirementId}.feature`;
+    const existing = await readFile(join(this.projectDirectory, path), "utf8");
+    const tag = existing.includes(`@${requirementId}`) ? `@${requirementId}\n` : "";
     await writeProjectFile({
-      content: changedRequirement,
+      content: `${tag}${changedRequirement}`,
       projectDirectory: this.projectDirectory,
-      relativePath: `features/${requirementId}.feature`,
+      relativePath: path,
     });
   },
 );
@@ -294,10 +297,22 @@ Given(
     });
     await writeProjectFile({
       content: [
+        "export function recordPayment() {",
+        '  return "recorded";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment-audit.ts",
+    });
+    await writeProjectFile({
+      content: [
         'import assert from "node:assert/strict";',
         'import { When, Then } from "tonic/cucumber";',
         'import { takePayment } from "../../src/payment.ts";',
+        'import { recordPayment } from "../../src/payment-audit.ts";',
         "",
+        "void recordPayment;",
         'let result = "";',
         "",
         'When("the customer pays 10 pounds", function () {',
@@ -330,6 +345,13 @@ Then("no manual requirement links are configured", async function (this: TonicWo
   )) as TonicConfiguration;
   assert.deepEqual(configuration.requirements, {});
 });
+
+Then(
+  "the command reports no compiled context for {string}",
+  function (this: TonicWorld, artifactPath: string) {
+    assert.match(commandOutput(this), new RegExp(`No compiled context for ${artifactPath}`));
+  },
+);
 
 Then("the executable requirement ran", async function (this: TonicWorld) {
   assert.equal(
