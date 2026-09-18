@@ -121,9 +121,8 @@ Given(
   async function (this: TonicWorld, requirementId: string) {
     const path = `features/${requirementId}.feature`;
     const existing = await readFile(join(this.projectDirectory, path), "utf8");
-    const tag = existing.includes(`@${requirementId}`) ? `@${requirementId}\n` : "";
     await writeProjectFile({
-      content: `${tag}${changedRequirement}`,
+      content: existing.replace(originalRequirement.trim(), changedRequirement.trim()),
       projectDirectory: this.projectDirectory,
       relativePath: path,
     });
@@ -349,7 +348,10 @@ Then("no manual requirement links are configured", async function (this: TonicWo
 Then(
   "the command reports no compiled context for {string}",
   function (this: TonicWorld, artifactPath: string) {
-    assert.match(commandOutput(this), new RegExp(`No compiled context for ${artifactPath}`));
+    assert.match(
+      commandOutput(this),
+      new RegExp(`No compiled context for ${artifactPath}`),
+    );
   },
 );
 

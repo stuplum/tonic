@@ -1,56 +1,75 @@
 # Tonic
 
-Tonic draws attention to implementation artifacts when an executable requirement changes.
-
-The requirement remains the source of desired behaviour. Tonic records only its stable ID, source file, affected files, and last acknowledged fingerprint. It does not generate design documentation, prescribe implementation changes, or turn feature work into an ADR.
+Tonic connects executable Gherkin to the implementation it actually exercises.
+The Gherkin remains the readable source of business behaviour for product,
+engineering, and agents. Tonic generates only hidden relationship metadata; it
+does not generate another description of the requirement.
 
 ## Repository workflow
 
-Initialise Tonic in a repository:
+Initialise Tonic and write an executable requirement with a stable requirement
+tag:
 
 ```sh
 tonic init
 ```
 
-Link an executable requirement to the files that should be reconsidered when it changes:
-
-```sh
-tonic add PAY-001 \
-  --source features/PAY-001-take-payment.feature \
-  --affects src/payment.ts \
-  --affects src/payment-gateway.ts
+```gherkin
+@PAY-001
+Feature: Take a payment
+  Scenario: Accept a valid payment
+    When the customer submits a valid payment
+    Then the payment is accepted
 ```
 
-Run the required attention check before an agent implements a feature and in CI:
-
-```sh
-tonic check
-```
-
-An unchanged repository exits successfully without output. A changed requirement exits unsuccessfully and lists the affected files to reconsider:
-
-```text
-PAY-001 changed.
-Reconsider:
-- src/payment.ts
-- src/payment-gateway.ts
-```
-
-After the current requirement and every affected file have been reconsidered, record the reviewed version:
-
-```sh
-tonic acknowledge PAY-001
-```
-
-`acknowledge` is the end of the review, not a way to silence `check` before reviewing the change.
-
-Run the repository's executable requirements with the Cucumber runtime bundled by Tonic:
+Run the executable requirements:
 
 ```sh
 tonic test
 ```
 
-By default, Tonic loads `features/**/*.feature` and
+For every successful tagged feature, Tonic compares dry-run and real execution
+coverage. It records the implementation functions exercised by the scenarios in
+`.tonic/compiled/`, mirroring the implementation paths. Step definitions,
+dependencies, generated metadata, and code loaded but not exercised are excluded.
+
+Retrieve the current Gherkin relevant to an implementation file:
+
+```sh
+tonic context src/payment.ts
+```
+
+This reads the live `.feature` file rather than a generated summary. Agents can
+therefore request focused business context without loading all repository
+documentation.
+
+Run the attention check before changing implementation and in CI:
+
+```sh
+tonic check
+```
+
+An unchanged repository exits successfully without output. If linked Gherkin has
+changed since it was last acknowledged, Tonic exits unsuccessfully and lists the
+implementation it previously exercised:
+
+```text
+PAY-001 changed.
+Reconsider:
+- src/payment.ts
+```
+
+A successful `tonic test` refreshes the discovered relationships but deliberately
+does not clear changed-requirement attention. After reconsidering every reported
+implementation file, explicitly record the reviewed requirement version:
+
+```sh
+tonic acknowledge PAY-001
+```
+
+This acknowledgement does not require or create manual file mappings.
+
+By default, Tonic discovers `features/**/*.feature` and
 `features/step_definitions/**/*.ts`. Step definitions import Cucumber from the
 package supplied by Tonic:
 
@@ -58,7 +77,7 @@ package supplied by Tonic:
 import { Given, Then, When } from "tonic/cucumber";
 ```
 
-Repositories can override the paths in `tonic.json`:
+Repositories can override discovery paths in `tonic.json`:
 
 ```json
 {
@@ -71,10 +90,22 @@ Repositories can override the paths in `tonic.json`:
 }
 ```
 
+The automatic discovery prototype currently covers JavaScript and TypeScript
+executed in the bundled Node.js runner. Other runtimes will require coverage
+adapters; they do not require Nx.
+
+## Legacy manual relationships
+
+The initial pilot accepted manually maintained links through `tonic add` and
+`tonic acknowledge`. Those commands remain compatible while automatic discovery
+is evaluated, but they are not required by the workflow above and are not the
+intended long-term model.
+
 ## Repository files
 
-- `tonic.json` is human-authored relationship metadata and belongs in version control.
-- `tonic.lock` contains generated requirement fingerprints and belongs in version control.
+- `tonic.json` contains runner configuration and optional legacy manual links.
+- `.tonic/compiled/` contains generated implementation relationships and belongs in version control.
+- `tonic.lock` contains fingerprints for optional legacy manual links.
 - Existing Gherkin, implementation, tests, documentation, and ADRs remain where they already live.
 
 ## Development

@@ -7,6 +7,11 @@ import {
   initializeRepository,
 } from "./repository.js";
 import { runExecutableRequirements } from "./executable-requirements.js";
+import {
+  acknowledgeCompiledRequirement,
+  findChangedCompiledRequirements,
+  readArtifactGherkin,
+} from "./compiled-context.js";
 
 try {
   await run({ arguments: process.argv.slice(2), projectDirectory: process.cwd() });
@@ -43,8 +48,11 @@ async function run({
       requireNoArguments({ command, commandArguments });
       await runTests({ projectDirectory });
       return;
+    case "context":
+      await runContext({ commandArguments, projectDirectory });
+      return;
     default:
-      throw new Error("Usage: tonic <init|add|check|acknowledge|test>");
+      throw new Error("Usage: tonic <init|add|check|acknowledge|test|context>");
   }
 }
 
@@ -73,7 +81,11 @@ async function runAdd({
 }
 
 async function runCheck({ projectDirectory }: { projectDirectory: string }) {
-  const changes = await findChangedRequirements({ projectDirectory });
+  const [configuredChanges, compiledChanges] = await Promise.all([
+    findChangedRequirements({ projectDirectory }),
+    findChangedCompiledRequirements({ projectDirectory }),
+  ]);
+  const changes = mergeChanges([...configuredChanges, ...compiledChanges]);
 
   for (const change of changes) {
     process.stdout.write(
@@ -85,6 +97,25 @@ async function runCheck({ projectDirectory }: { projectDirectory: string }) {
 
   if (changes.length > 0) {
     process.exitCode = 1;
+  }
+}
+
+async function runContext({
+  commandArguments,
+  projectDirectory,
+}: {
+  commandArguments: string[];
+  projectDirectory: string;
+}) {
+  const [artifact, ...remainingArguments] = commandArguments;
+
+  if (!artifact || remainingArguments.length > 0) {
+    throw new Error("Usage: tonic context <artifact>");
+  }
+
+  const sources = await readArtifactGherkin({ artifact, projectDirectory });
+  for (const source of sources) {
+    process.stdout.write(`${source.content.trim()}\n`);
   }
 }
 
@@ -101,7 +132,14 @@ async function runAcknowledge({
     throw new Error("Usage: tonic acknowledge <requirement-id>");
   }
 
-  await acknowledgeRequirement({ projectDirectory, requirementId });
+  const [configured, compiled] = await Promise.all([
+    acknowledgeRequirement({ projectDirectory, requirementId }),
+    acknowledgeCompiledRequirement({ projectDirectory, requirementId }),
+  ]);
+
+  if (!configured && !compiled) {
+    throw new Error(`Requirement ${requirementId} is not configured or compiled`);
+  }
 }
 
 async function runTests({ projectDirectory }: { projectDirectory: string }) {
@@ -160,4 +198,21 @@ function requireNoArguments({
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function mergeChanges(changes: Array<{ affects: string[]; id: string }>) {
+  const merged = new Map<string, Set<string>>();
+
+  for (const change of changes) {
+    const affectedPaths = merged.get(change.id) ?? new Set<string>();
+    for (const path of change.affects) {
+      affectedPaths.add(path);
+    }
+    merged.set(change.id, affectedPaths);
+  }
+
+  return [...merged.entries()].map(([id, affects]) => ({
+    affects: [...affects].sort(),
+    id,
+  }));
 }

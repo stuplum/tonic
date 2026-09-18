@@ -127,7 +127,7 @@ export async function acknowledgeRequirement({
   const requirement = configuration.requirements[requirementId];
 
   if (!requirement) {
-    throw new Error(`Requirement ${requirementId} is not configured`);
+    return false;
   }
 
   await validateRequirementLink({ projectDirectory, requirement });
@@ -138,6 +138,7 @@ export async function acknowledgeRequirement({
     }),
   };
   await writeLock({ lock, projectDirectory });
+  return true;
 }
 
 async function validateRequirementLink({

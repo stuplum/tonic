@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@cucumber/cucumber": "^12.2.0",
+    "glob": "^13.0.6",
     "tsx": "^4.20.0"
   },
   "devDependencies": {
