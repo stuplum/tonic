@@ -329,6 +329,81 @@ Given(
   },
 );
 
+Given(
+  "an executable requirement uses aliases from {string}",
+  async function (this: TonicWorld, configurationFile: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeJson(join(this.projectDirectory, configurationFile), {
+      compilerOptions: {
+        baseUrl: ".",
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        paths: { "@payments/*": ["src/*"] },
+        target: "ES2022",
+      },
+    });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays",
+        "    Then the payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment() {",
+        '  return "accepted";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment.ts",
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { Then, When } from "tonic/cucumber";',
+        'import { takePayment } from "@payments/payment.ts";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays", function () {',
+        "  result = takePayment();",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
+  "an executable requirement exists without step definitions",
+  async function (this: TonicWorld) {
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+  },
+);
+
 Then(
   "the command returns the current Gherkin for requirement {string}",
   async function (this: TonicWorld, requirementId: string) {
@@ -352,6 +427,20 @@ Then(
       commandOutput(this),
       new RegExp(`No compiled context for ${artifactPath}`),
     );
+  },
+);
+
+Then(
+  "the command reports that no executable requirements matched",
+  function (this: TonicWorld) {
+    assert.match(commandOutput(this), /No executable requirements matched/);
+  },
+);
+
+Then(
+  "the command reports that no step definitions matched",
+  function (this: TonicWorld) {
+    assert.match(commandOutput(this), /No step definitions matched/);
   },
 );
 
