@@ -43,6 +43,22 @@ This reads the live `.feature` file rather than a generated summary. Agents can
 therefore request focused business context without loading all repository
 documentation.
 
+Add this small rule to the repository's agent instructions so context retrieval
+is part of normal implementation work:
+
+```markdown
+- Run `tonic check` before implementing a feature or changing architecture.
+- Before editing an implementation file, run `tonic context <path>` and treat
+  any returned Gherkin as its current business and acceptance contract.
+- `No compiled context` means no related executable requirement is known.
+- Acknowledge a changed requirement only after reconsidering every reported
+  implementation file.
+```
+
+The CLI provides the portable mechanism; the repository instruction is the
+agent integration. It works inside or outside Nx, but still depends on the agent
+following repository instructions.
+
 Run the attention check before changing implementation and in CI:
 
 ```sh
