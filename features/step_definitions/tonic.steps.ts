@@ -224,6 +224,63 @@ Given(
 );
 
 Given(
+  "executable requirement {string} exercises {string} through an extensionless import",
+  async function (this: TonicWorld, requirementId: string, artifactPath: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: '{"type":"module"}\n',
+      projectDirectory: this.projectDirectory,
+      relativePath: "package.json",
+    });
+    await writeProjectFile({
+      content: '{"main":"index.cjs"}\n',
+      projectDirectory: this.projectDirectory,
+      relativePath: "apps/public/package.json",
+    });
+    await writeProjectFile({
+      content: [
+        `@${requirementId}`,
+        "Feature: Take a payment",
+        "  Scenario: Complete an accepted payment",
+        "    When the customer pays through an extensionless import",
+        "    Then the payment is accepted through an extensionless import",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: `features/${requirementId}.feature`,
+    });
+    await writeProjectFile({
+      content: [
+        "export const takePayment = () => \"accepted\";",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: artifactPath,
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { When, Then } from "tonic/cucumber";',
+        `import { takePayment } from "../../${artifactPath.replace(/\.ts$/, "")}";`,
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays through an extensionless import", function () {',
+        "  result = takePayment();",
+        "});",
+        "",
+        'Then("the payment is accepted through an extensionless import", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
   "an executable requirement uses aliases from {string}",
   async function (this: TonicWorld, configurationFile: string) {
     await linkTonicPackage({ projectDirectory: this.projectDirectory });

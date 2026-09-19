@@ -22,3 +22,12 @@ Feature: Fail clearly when executable requirement discovery is unreliable
     When I run "tonic test"
     Then the command fails
     And the command reports that no step definitions matched
+
+  Scenario: Resolve an extensionless TypeScript import with an encoded TSX identity
+    Given an empty project
+    And executable requirement "PAY-001" exercises "apps/public/src/utils/payment.ts" through an extensionless import
+    When I run "tonic test"
+    Then the command succeeds
+    When I run "tonic context apps/public/src/utils/payment.ts"
+    Then the command succeeds
+    And the command returns the current Gherkin for requirement "PAY-001"
