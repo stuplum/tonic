@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 
-import {
-  acknowledgeRequirement,
-  addRequirement,
-  findChangedRequirements,
-  initializeRepository,
-} from "./repository.js";
 import { runExecutableRequirements } from "./executable-requirements.js";
 import {
   acknowledgeCompiledRequirement,
@@ -30,12 +24,12 @@ async function run({
   const [command, ...commandArguments] = arguments_;
 
   switch (command) {
-    case "init":
+    case "test":
       requireNoArguments({ command, commandArguments });
-      await initializeRepository({ projectDirectory });
+      await runTests({ projectDirectory });
       return;
-    case "add":
-      await runAdd({ commandArguments, projectDirectory });
+    case "context":
+      await runContext({ commandArguments, projectDirectory });
       return;
     case "check":
       requireNoArguments({ command, commandArguments });
@@ -44,48 +38,13 @@ async function run({
     case "acknowledge":
       await runAcknowledge({ commandArguments, projectDirectory });
       return;
-    case "test":
-      requireNoArguments({ command, commandArguments });
-      await runTests({ projectDirectory });
-      return;
-    case "context":
-      await runContext({ commandArguments, projectDirectory });
-      return;
     default:
-      throw new Error("Usage: tonic <init|add|check|acknowledge|test|context>");
+      throw new Error("Usage: tonic <test|context|check|acknowledge>");
   }
-}
-
-async function runAdd({
-  commandArguments,
-  projectDirectory,
-}: {
-  commandArguments: string[];
-  projectDirectory: string;
-}) {
-  const [requirementId, ...options] = commandArguments;
-
-  if (!requirementId) {
-    throw new Error(
-      "Usage: tonic add <requirement-id> --source <path> --affects <path>",
-    );
-  }
-
-  const { affectedPaths, sourcePath } = parseAddOptions(options);
-  await addRequirement({
-    affectedPaths,
-    projectDirectory,
-    requirementId,
-    sourcePath,
-  });
 }
 
 async function runCheck({ projectDirectory }: { projectDirectory: string }) {
-  const [configuredChanges, compiledChanges] = await Promise.all([
-    findChangedRequirements({ projectDirectory }),
-    findChangedCompiledRequirements({ projectDirectory }),
-  ]);
-  const changes = mergeChanges([...configuredChanges, ...compiledChanges]);
+  const changes = await findChangedCompiledRequirements({ projectDirectory });
 
   for (const change of changes) {
     process.stdout.write(
@@ -132,13 +91,13 @@ async function runAcknowledge({
     throw new Error("Usage: tonic acknowledge <requirement-id>");
   }
 
-  const [configured, compiled] = await Promise.all([
-    acknowledgeRequirement({ projectDirectory, requirementId }),
-    acknowledgeCompiledRequirement({ projectDirectory, requirementId }),
-  ]);
+  const acknowledged = await acknowledgeCompiledRequirement({
+    projectDirectory,
+    requirementId,
+  });
 
-  if (!configured && !compiled) {
-    throw new Error(`Requirement ${requirementId} is not configured or compiled`);
+  if (!acknowledged) {
+    throw new Error(`Requirement ${requirementId} is not compiled`);
   }
 }
 
@@ -148,40 +107,6 @@ async function runTests({ projectDirectory }: { projectDirectory: string }) {
   if (!success) {
     process.exitCode = 1;
   }
-}
-
-function parseAddOptions(options: string[]) {
-  let sourcePath: string | undefined;
-  const affectedPaths: string[] = [];
-
-  for (let index = 0; index < options.length; index += 2) {
-    const option = options[index];
-    const value = options[index + 1];
-
-    if (!value) {
-      throw new Error(`${option} requires a path`);
-    }
-
-    if (option === "--source" && !sourcePath) {
-      sourcePath = value;
-      continue;
-    }
-
-    if (option === "--affects") {
-      affectedPaths.push(value);
-      continue;
-    }
-
-    throw new Error(`Unknown or repeated option ${option}`);
-  }
-
-  if (!sourcePath || affectedPaths.length === 0) {
-    throw new Error(
-      "Usage: tonic add <requirement-id> --source <path> --affects <path>",
-    );
-  }
-
-  return { affectedPaths, sourcePath };
 }
 
 function requireNoArguments({
@@ -198,21 +123,4 @@ function requireNoArguments({
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
-}
-
-function mergeChanges(changes: Array<{ affects: string[]; id: string }>) {
-  const merged = new Map<string, Set<string>>();
-
-  for (const change of changes) {
-    const affectedPaths = merged.get(change.id) ?? new Set<string>();
-    for (const path of change.affects) {
-      affectedPaths.add(path);
-    }
-    merged.set(change.id, affectedPaths);
-  }
-
-  return [...merged.entries()].map(([id, affects]) => ({
-    affects: [...affects].sort(),
-    id,
-  }));
 }
