@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import {
+  access,
   mkdtemp,
   mkdir,
   readFile,
@@ -25,18 +25,7 @@ const originalRequirement = "Feature: Take a payment\n";
 const changedRequirement = "Feature: Take independent payments\n";
 
 type TonicConfiguration = {
-  requirements: Record<
-    string,
-    {
-      affects: string[];
-      source: string;
-    }
-  >;
-  version: 1;
-};
-
-type TonicLock = {
-  requirements: Record<string, { fingerprint: string }>;
+  cucumber?: { features: string[]; steps: string[] };
   version: 1;
 };
 
@@ -53,66 +42,19 @@ Given("an empty project", async function (this: TonicWorld) {
   this.projectDirectory = await mkdtemp(join(tmpdir(), "tonic-acceptance-"));
 });
 
-Given("an initialised project", async function (this: TonicWorld) {
-  this.projectDirectory = await mkdtemp(join(tmpdir(), "tonic-acceptance-"));
-  await writeJson(join(this.projectDirectory, "tonic.json"), emptyConfiguration());
-  await writeJson(join(this.projectDirectory, "tonic.lock"), emptyLock());
-});
-
 Given(
-  "requirement {string} is defined in {string}",
-  async function (this: TonicWorld, _requirementId: string, source: string) {
-    await writeProjectFile({
-      content: originalRequirement,
-      projectDirectory: this.projectDirectory,
-      relativePath: source,
-    });
-  },
-);
-
-Given(
-  "artifact {string} exists",
-  async function (this: TonicWorld, relativePath: string) {
-    await writeProjectFile({
-      content: "export {};\n",
-      projectDirectory: this.projectDirectory,
-      relativePath,
-    });
-  },
-);
-
-Given(
-  "requirement {string} is linked to {string}",
-  async function (this: TonicWorld, requirementId: string, affectedPath: string) {
+  "a project with legacy manual relationship configuration",
+  async function (this: TonicWorld) {
     this.projectDirectory = await mkdtemp(join(tmpdir(), "tonic-acceptance-"));
-    const source = `features/${requirementId}.feature`;
-    await writeProjectFile({
-      content: originalRequirement,
-      projectDirectory: this.projectDirectory,
-      relativePath: source,
-    });
-    await writeProjectFile({
-      content: "export {};\n",
-      projectDirectory: this.projectDirectory,
-      relativePath: affectedPath,
-    });
     await writeJson(join(this.projectDirectory, "tonic.json"), {
       requirements: {
-        [requirementId]: {
-          affects: [affectedPath],
-          source,
+        "PAY-001": {
+          affects: ["src/payment.ts"],
+          source: "features/PAY-001.feature",
         },
       },
       version: 1,
-    } satisfies TonicConfiguration);
-    await writeJson(join(this.projectDirectory, "tonic.lock"), {
-      requirements: {
-        [requirementId]: {
-          fingerprint: fingerprint(originalRequirement),
-        },
-      },
-      version: 1,
-    } satisfies TonicLock);
+    });
   },
 );
 
@@ -145,47 +87,6 @@ Then("the command fails", function (this: TonicWorld) {
   assert.notEqual(commandResult(this).status, 0);
 });
 
-Then(
-  "the project contains an empty Tonic configuration",
-  async function (this: TonicWorld) {
-    assert.deepEqual(await readJson(join(this.projectDirectory, "tonic.json")), emptyConfiguration());
-  },
-);
-
-Then(
-  "the project contains an empty Tonic lock file",
-  async function (this: TonicWorld) {
-    assert.deepEqual(await readJson(join(this.projectDirectory, "tonic.lock")), emptyLock());
-  },
-);
-
-Then(
-  "the configuration links requirement {string} to {string}",
-  async function (this: TonicWorld, requirementId: string, affectedPath: string) {
-    const configuration = (await readJson(
-      join(this.projectDirectory, "tonic.json"),
-    )) as TonicConfiguration;
-    assert.deepEqual(configuration.requirements[requirementId], {
-      affects: [affectedPath],
-      source: `features/${requirementId}.feature`,
-    });
-  },
-);
-
-Then(
-  "the current fingerprint of {string} is recorded",
-  async function (this: TonicWorld, requirementId: string) {
-    const lock = (await readJson(join(this.projectDirectory, "tonic.lock"))) as TonicLock;
-    const configuration = (await readJson(
-      join(this.projectDirectory, "tonic.json"),
-    )) as TonicConfiguration;
-    const source = configuration.requirements[requirementId]?.source;
-    assert.ok(source, `Requirement ${requirementId} is not configured`);
-    const content = await readFile(join(this.projectDirectory, source), "utf8");
-    assert.equal(lock.requirements[requirementId]?.fingerprint, fingerprint(content));
-  },
-);
-
 Then("the command produces no output", function (this: TonicWorld) {
   assert.equal(commandOutput(this), "");
 });
@@ -201,13 +102,6 @@ Then(
   "the command reports {string} for reconsideration",
   function (this: TonicWorld, affectedPath: string) {
     assert.match(commandOutput(this), new RegExp(`Reconsider:.*${escapeRegex(affectedPath)}`, "s"));
-  },
-);
-
-Then(
-  "the command reports that {string} does not exist",
-  function (this: TonicWorld, relativePath: string) {
-    assert.match(commandOutput(this), new RegExp(`${escapeRegex(relativePath)} does not exist`));
   },
 );
 
@@ -244,12 +138,12 @@ Given(
     featureDirectory: string,
     stepsDirectory: string,
   ) {
-    const configuration = emptyConfiguration() as TonicConfiguration & {
-      cucumber: { features: string[]; steps: string[] };
-    };
-    configuration.cucumber = {
-      features: [`${featureDirectory}/**/*.feature`],
-      steps: [`${stepsDirectory}/**/*.ts`],
+    const configuration: TonicConfiguration = {
+      cucumber: {
+        features: [`${featureDirectory}/**/*.feature`],
+        steps: [`${stepsDirectory}/**/*.ts`],
+      },
+      version: 1,
     };
     await writeJson(join(this.projectDirectory, "tonic.json"), configuration);
   },
@@ -532,11 +426,20 @@ Then(
   },
 );
 
-Then("no manual requirement links are configured", async function (this: TonicWorld) {
-  const configuration = (await readJson(
-    join(this.projectDirectory, "tonic.json"),
-  )) as TonicConfiguration;
-  assert.deepEqual(configuration.requirements, {});
+Then("no legacy Tonic files are created", async function (this: TonicWorld) {
+  await assert.rejects(access(join(this.projectDirectory, "tonic.json")));
+  await assert.rejects(access(join(this.projectDirectory, "tonic.lock")));
+});
+
+Then("the command reports only the supported commands", function (this: TonicWorld) {
+  assert.match(
+    commandOutput(this),
+    /Usage: tonic <test\|context\|check\|acknowledge>/,
+  );
+});
+
+Then("the command reports invalid Tonic configuration", function (this: TonicWorld) {
+  assert.match(commandOutput(this), /Invalid Tonic configuration/);
 });
 
 Then(
@@ -610,19 +513,6 @@ After(async function (this: TonicWorld) {
   }
 });
 
-function emptyConfiguration(): TonicConfiguration {
-  return { requirements: {}, version: 1 };
-}
-
-function emptyLock(): TonicLock {
-  return { requirements: {}, version: 1 };
-}
-
-function fingerprint(content: string) {
-  const normalizedContent = content.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-  return `sha256:${createHash("sha256").update(normalizedContent, "utf8").digest("hex")}`;
-}
-
 function splitCommand(command: string) {
   return command.split(" ");
 }
@@ -653,10 +543,6 @@ async function writeProjectFile({
 
 async function writeJson(path: string, value: unknown) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-async function readJson(path: string) {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
 }
 
 function escapeRegex(value: string) {

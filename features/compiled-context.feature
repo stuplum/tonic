@@ -3,17 +3,17 @@ Feature: Compile executable requirements into implementation context
   Tonic discovers its implementation relationships from successful execution.
 
   Scenario: Record the requirement that exercises an implementation file
-    Given an initialised project
+    Given an empty project
     And executable requirement "PAY-001" exercises "src/payment.ts"
     When I run "tonic test"
     Then the command succeeds
     When I run "tonic context src/payment.ts"
     Then the command succeeds
     And the command returns the current Gherkin for requirement "PAY-001"
-    And no manual requirement links are configured
+    And no legacy Tonic files are created
 
   Scenario: A changed requirement invalidates its discovered implementation context
-    Given an initialised project
+    Given an empty project
     And executable requirement "PAY-001" exercises "src/payment.ts"
     When I run "tonic test"
     Then the command succeeds
@@ -26,7 +26,7 @@ Feature: Compile executable requirements into implementation context
     And the command reports "src/payment.ts" for reconsideration
 
   Scenario: Acknowledge a changed requirement after reconsidering discovered implementation
-    Given an initialised project
+    Given an empty project
     And executable requirement "PAY-001" exercises "src/payment.ts"
     When I run "tonic test"
     Then the command succeeds
@@ -40,7 +40,7 @@ Feature: Compile executable requirements into implementation context
     And the command produces no output
 
   Scenario: Ignore code loaded by the test adapter but not exercised by the requirement
-    Given an initialised project
+    Given an empty project
     And executable requirement "PAY-001" exercises "src/payment.ts"
     When I run "tonic test"
     Then the command succeeds
