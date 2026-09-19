@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +25,19 @@ export async function runExecutableRequirements({
     glob(featurePaths, { cwd: projectDirectory, nodir: true }),
     glob(stepPaths, { cwd: projectDirectory, nodir: true }),
   ]);
+  requireMatches({
+    kind: "executable requirements",
+    matches: featureFiles,
+    patterns: featurePaths,
+  });
+  requireMatches({
+    kind: "step definitions",
+    matches: stepFiles,
+    patterns: stepPaths,
+  });
+  const typeScriptConfiguration = await findTypeScriptConfiguration({
+    projectDirectory,
+  });
   const cucumberArguments = stepPaths.flatMap((path) => ["--import", path]);
   const executions = [];
 
@@ -38,6 +51,7 @@ export async function runExecutableRequirements({
         coverageDirectory: baselineCoverageDirectory,
         projectDirectory,
         silent: true,
+        typeScriptConfiguration,
       });
       if (baselineExitCode !== 0) {
         return false;
@@ -48,6 +62,7 @@ export async function runExecutableRequirements({
         coverageDirectory,
         projectDirectory,
         silent: false,
+        typeScriptConfiguration,
       });
 
       if (exitCode !== 0) {
@@ -80,11 +95,13 @@ async function runCucumberProcess({
   coverageDirectory,
   projectDirectory,
   silent,
+  typeScriptConfiguration,
 }: {
   arguments: string[];
   coverageDirectory: string;
   projectDirectory: string;
   silent: boolean;
+  typeScriptConfiguration?: string;
 }) {
   const cucumberPackageUrl = import.meta.resolve(
     "@cucumber/cucumber/package.json",
@@ -100,7 +117,13 @@ async function runCucumberProcess({
       ["--import", tsxLoaderUrl, cucumberCliPath, ...arguments_],
       {
         cwd: projectDirectory,
-        env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory },
+        env: {
+          ...process.env,
+          ...(typeScriptConfiguration
+            ? { TSX_TSCONFIG_PATH: typeScriptConfiguration }
+            : {}),
+          NODE_V8_COVERAGE: coverageDirectory,
+        },
         stdio: silent ? "ignore" : "inherit",
       },
     );
@@ -115,4 +138,40 @@ async function runCucumberProcess({
       resolve(code ?? 1);
     });
   });
+}
+
+function requireMatches({
+  kind,
+  matches,
+  patterns,
+}: {
+  kind: string;
+  matches: string[];
+  patterns: string[];
+}) {
+  if (matches.length === 0) {
+    throw new Error(`No ${kind} matched: ${patterns.join(", ")}`);
+  }
+}
+
+async function findTypeScriptConfiguration({
+  projectDirectory,
+}: {
+  projectDirectory: string;
+}) {
+  if (process.env.TSX_TSCONFIG_PATH) {
+    return process.env.TSX_TSCONFIG_PATH;
+  }
+
+  for (const fileName of ["tsconfig.json", "tsconfig.base.json"]) {
+    const path = join(projectDirectory, fileName);
+    try {
+      await access(path);
+      return path;
+    } catch {
+      continue;
+    }
+  }
+
+  return undefined;
 }
