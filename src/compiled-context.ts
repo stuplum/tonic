@@ -54,6 +54,8 @@ export async function compileFeatureExecutions({
   }
 
   const contexts = new Map<string, Map<string, RequirementContext>>();
+  const requirementSources = new Map<string, string>();
+  const compiledFeatures = [];
 
   for (const execution of executions) {
     const feature = await readFile(
@@ -63,8 +65,22 @@ export async function compileFeatureExecutions({
       }),
       "utf8",
     );
+    const ids = requirementIds(feature);
+    for (const id of ids) {
+      const existingSource = requirementSources.get(id);
+      if (existingSource && existingSource !== execution.source) {
+        throw new Error(
+          `Duplicate requirement ID ${id}: ${existingSource}, ${execution.source}`,
+        );
+      }
+      requirementSources.set(id, execution.source);
+    }
+    compiledFeatures.push({ execution, feature, ids });
+  }
+
+  for (const { execution, feature, ids } of compiledFeatures) {
     const fingerprint = calculateFingerprint(feature);
-    const requirements = requirementIds(feature).map((id) => ({
+    const requirements = ids.map((id) => ({
       fingerprint: verifiedFingerprints.get(id) ?? fingerprint,
       id,
       source: execution.source,
@@ -175,6 +191,7 @@ export async function collectExecutedArtifacts({
     ]);
   const steps = new Set(resolvedStepFiles);
   const artifacts = new Set<string>();
+  const unreliableModulePaths = new Set<string>();
 
   for (const coverage of coverageFiles) {
     for (const script of coverage.result) {
@@ -199,11 +216,18 @@ export async function collectExecutedArtifacts({
         continue;
       }
 
-      artifacts.add(normalizePath(relative(resolvedProjectDirectory, path)));
+      const artifact = normalizePath(relative(resolvedProjectDirectory, path));
+      artifacts.add(artifact);
+      if (hasUnreliableModuleIdentity(script.url)) {
+        unreliableModulePaths.add(artifact);
+      }
     }
   }
 
-  return [...artifacts].sort();
+  return {
+    artifacts: [...artifacts].sort(),
+    unreliableModulePaths: [...unreliableModulePaths].sort(),
+  };
 }
 
 export async function findChangedCompiledRequirements({
@@ -264,15 +288,27 @@ export async function readArtifactGherkin({
 }
 
 async function readAllContexts({ projectDirectory }: { projectDirectory: string }) {
-  const paths = await glob(`${compiledDirectory}/**/*.json`, {
+  const directory = resolveProjectPath({
+    projectDirectory,
+    relativePath: compiledDirectory,
+  });
+  const paths = await glob("**/*.json", {
     absolute: true,
-    cwd: projectDirectory,
+    cwd: directory,
     nodir: true,
   });
   return Promise.all(
-    paths.sort().map(async (path) =>
-      JSON.parse(await readFile(path, "utf8")) as ArtifactContext,
-    ),
+    paths.sort().map(async (path) => {
+      const expectedArtifact = normalizePath(relative(directory, path)).replace(
+        /\.json$/,
+        "",
+      );
+      return parseArtifactContext({
+        content: await readFile(path, "utf8"),
+        expectedArtifact,
+        path,
+      });
+    }),
   );
 }
 
@@ -321,7 +357,11 @@ async function readContext({
     throw error;
   }
 
-  return JSON.parse(content) as ArtifactContext;
+  return parseArtifactContext({
+    content,
+    expectedArtifact: artifact,
+    path,
+  });
 }
 
 async function writeContext({
@@ -336,9 +376,13 @@ async function writeContext({
 }
 
 function requirementIds(feature: string) {
-  return [...feature.matchAll(/(?:^|\s)@([A-Z][A-Z0-9]*-\d+)\b/g)].map(
-    (match) => match[1],
-  );
+  return [
+    ...new Set(
+      [...feature.matchAll(/(?:^|\s)@([A-Z][A-Z0-9]*-\d+)\b/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ];
 }
 
 async function readCoverageFiles(directory: string) {
@@ -405,11 +449,19 @@ function coverageRangeKey({
 
 async function resolveCoveredFile(url: string) {
   try {
-    const path = fileURLToPath(url);
-    const queryIndex = path.indexOf("?");
-    return await realpath(queryIndex === -1 ? path : path.slice(0, queryIndex));
+    return await realpath(fileURLToPath(new URL(url)));
   } catch {
     return undefined;
+  }
+}
+
+function hasUnreliableModuleIdentity(url: string) {
+  try {
+    return [...new URL(url).searchParams.keys()].some(
+      (key) => !key.startsWith("tsx-"),
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -466,4 +518,58 @@ function resolveProjectPath({
 
 function normalizePath(path: string) {
   return path.split("\\").join("/");
+}
+
+function parseArtifactContext({
+  content,
+  expectedArtifact,
+  path,
+}: {
+  content: string;
+  expectedArtifact: string;
+  path: string;
+}): ArtifactContext {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw invalidCompiledContext(path);
+  }
+
+  if (
+    !isRecord(parsed) ||
+    parsed.version !== 1 ||
+    parsed.artifact !== expectedArtifact ||
+    !Array.isArray(parsed.requirements) ||
+    parsed.requirements.length === 0
+  ) {
+    throw invalidCompiledContext(path);
+  }
+
+  const requirementIds = new Set<string>();
+  for (const requirement of parsed.requirements) {
+    if (
+      !isRecord(requirement) ||
+      typeof requirement.id !== "string" ||
+      !/^[A-Z][A-Z0-9]*-\d+$/.test(requirement.id) ||
+      typeof requirement.source !== "string" ||
+      requirement.source.length === 0 ||
+      typeof requirement.fingerprint !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/.test(requirement.fingerprint) ||
+      requirementIds.has(requirement.id)
+    ) {
+      throw invalidCompiledContext(path);
+    }
+    requirementIds.add(requirement.id);
+  }
+
+  return parsed as ArtifactContext;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function invalidCompiledContext(path: string) {
+  return new Error(`Invalid compiled context: ${path}`);
 }

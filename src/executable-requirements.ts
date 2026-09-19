@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +40,13 @@ export async function runExecutableRequirements({
   });
   const cucumberArguments = stepPaths.flatMap((path) => ["--import", path]);
   const executions = [];
+  const warnedDynamicModules = new Set<string>();
+  for (const path of await findDynamicImportStepFiles({
+    projectDirectory,
+    stepFiles,
+  })) {
+    warnAboutDynamicModule({ path, warnedDynamicModules });
+  }
 
   for (const source of featureFiles.sort()) {
     const baselineCoverageDirectory = await mkdtemp(join(tmpdir(), "tonic-baseline-"));
@@ -69,13 +76,18 @@ export async function runExecutableRequirements({
         return false;
       }
 
-      executions.push({
-        artifacts: await collectExecutedArtifacts({
+      const { artifacts, unreliableModulePaths } =
+        await collectExecutedArtifacts({
           baselineCoverageDirectory,
           coverageDirectory,
           projectDirectory,
           stepFiles,
-        }),
+        });
+      for (const path of unreliableModulePaths) {
+        warnAboutDynamicModule({ path, warnedDynamicModules });
+      }
+      executions.push({
+        artifacts,
         source,
       });
     } finally {
@@ -174,4 +186,40 @@ async function findTypeScriptConfiguration({
   }
 
   return undefined;
+}
+
+async function findDynamicImportStepFiles({
+  projectDirectory,
+  stepFiles,
+}: {
+  projectDirectory: string;
+  stepFiles: string[];
+}) {
+  const dynamicImportFiles = await Promise.all(
+    stepFiles.map(async (path) => ({
+      dynamic: /\bimport\s*\(/.test(
+        await readFile(join(projectDirectory, path), "utf8"),
+      ),
+      path,
+    })),
+  );
+  return dynamicImportFiles
+    .filter(({ dynamic }) => dynamic)
+    .map(({ path }) => path)
+    .sort();
+}
+
+function warnAboutDynamicModule({
+  path,
+  warnedDynamicModules,
+}: {
+  path: string;
+  warnedDynamicModules: Set<string>;
+}) {
+  if (warnedDynamicModules.has(path)) {
+    return;
+  }
+
+  process.stderr.write(`Dynamic module coverage may be unreliable for ${path}.\n`);
+  warnedDynamicModules.add(path);
 }
