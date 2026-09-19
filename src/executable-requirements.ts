@@ -61,6 +61,13 @@ export async function runExecutableRequirements({
         typeScriptConfiguration,
       });
       if (baselineExitCode !== 0) {
+        await runCucumberProcess({
+          arguments: ["--dry-run", ...cucumberArguments, source],
+          coverageDirectory: baselineCoverageDirectory,
+          projectDirectory,
+          silent: false,
+          typeScriptConfiguration,
+        });
         return false;
       }
 
