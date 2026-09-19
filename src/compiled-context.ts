@@ -449,7 +449,9 @@ function coverageRangeKey({
 
 async function resolveCoveredFile(url: string) {
   try {
-    return await realpath(fileURLToPath(new URL(url)));
+    const path = fileURLToPath(url);
+    const queryIndex = path.indexOf("?");
+    return await realpath(queryIndex === -1 ? path : path.slice(0, queryIndex));
   } catch {
     return undefined;
   }
