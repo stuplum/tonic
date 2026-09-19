@@ -404,6 +404,125 @@ Given(
   },
 );
 
+Given(
+  "an executable requirement dynamically imports {string} with a query",
+  async function (this: TonicWorld, artifactPath: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays through a dynamic module",
+        "    Then the dynamic payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment() {",
+        '  return "accepted";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: artifactPath,
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { Then, When } from "tonic/cucumber";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays through a dynamic module", async function () {',
+        '  const payment = await import("../../src/payment.ts?scenario=payment");',
+        "  result = payment.takePayment();",
+        "});",
+        "",
+        'Then("the dynamic payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
+  "requirement ID {string} appears in two executable feature files",
+  async function (this: TonicWorld, requirementId: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    for (const featureName of ["first-payment", "second-payment"]) {
+      await writeProjectFile({
+        content: [
+          `@${requirementId}`,
+          `Feature: ${featureName}`,
+          "  Scenario: Accept a valid payment",
+          "    When the customer pays 10 pounds",
+          "    Then the payment is accepted",
+          "",
+        ].join("\n"),
+        projectDirectory: this.projectDirectory,
+        relativePath: `features/${featureName}.feature`,
+      });
+    }
+    await writeProjectFile({
+      content: [
+        "export function takePayment(amount: number) {",
+        '  return amount > 0 ? "accepted" : "declined";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment.ts",
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { Then, When } from "tonic/cucumber";',
+        'import { takePayment } from "../../src/payment.ts";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays 10 pounds", function () {',
+        "  result = takePayment(10);",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
+  "malformed compiled context exists for {string}",
+  async function (this: TonicWorld, artifactPath: string) {
+    await writeProjectFile({
+      content: JSON.stringify(
+        {
+          artifact: artifactPath,
+          requirements: "not-an-array",
+          version: 1,
+        },
+        null,
+        2,
+      ),
+      projectDirectory: this.projectDirectory,
+      relativePath: `.tonic/compiled/${artifactPath}.json`,
+    });
+  },
+);
+
 Then(
   "the command returns the current Gherkin for requirement {string}",
   async function (this: TonicWorld, requirementId: string) {
@@ -441,6 +560,33 @@ Then(
   "the command reports that no step definitions matched",
   function (this: TonicWorld) {
     assert.match(commandOutput(this), /No step definitions matched/);
+  },
+);
+
+Then(
+  "the command warns that dynamic module coverage may be unreliable",
+  function (this: TonicWorld) {
+    assert.match(
+      commandOutput(this),
+      /Dynamic module coverage may be unreliable/,
+    );
+  },
+);
+
+Then(
+  "the command reports duplicate requirement ID {string}",
+  function (this: TonicWorld, requirementId: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(`Duplicate requirement ID ${requirementId}`),
+    );
+  },
+);
+
+Then(
+  "the command reports invalid compiled context",
+  function (this: TonicWorld) {
+    assert.match(commandOutput(this), /Invalid compiled context/);
   },
 );
 
