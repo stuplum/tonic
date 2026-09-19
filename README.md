@@ -7,12 +7,7 @@ does not generate another description of the requirement.
 
 ## Repository workflow
 
-Initialise Tonic and write an executable requirement with a stable requirement
-tag:
-
-```sh
-tonic init
-```
+Write an executable requirement with a stable requirement tag:
 
 ```gherkin
 @PAY-001
@@ -93,12 +88,12 @@ package supplied by Tonic:
 import { Given, Then, When } from "tonic/cucumber";
 ```
 
-Repositories can override discovery paths in `tonic.json`:
+No Tonic configuration file is required. Repositories can override discovery
+paths with an optional `tonic.json`:
 
 ```json
 {
   "version": 1,
-  "requirements": {},
   "cucumber": {
     "features": ["specifications/**/*.feature"],
     "steps": ["specifications/support/**/*.ts"]
@@ -106,23 +101,20 @@ Repositories can override discovery paths in `tonic.json`:
 }
 ```
 
-The automatic discovery prototype currently covers JavaScript and TypeScript
-executed in the bundled Node.js runner. Other runtimes will require coverage
-adapters; they do not require Nx.
-
-## Legacy manual relationships
-
-The initial pilot accepted manually maintained links through `tonic add` and
-`tonic acknowledge`. Those commands remain compatible while automatic discovery
-is evaluated, but they are not required by the workflow above and are not the
-intended long-term model.
+The automatic discovery candidate covers JavaScript and TypeScript executed in
+the bundled Node.js runner. Tonic reports dynamic imports because their module
+identity can make coverage relationships unreliable. Other runtimes will
+require coverage adapters; they do not require Nx.
 
 ## Repository files
 
-- `tonic.json` contains runner configuration and optional legacy manual links.
+- `tonic.json` optionally overrides executable Gherkin discovery paths.
 - `.tonic/compiled/` contains generated implementation relationships and belongs in version control.
-- `tonic.lock` contains fingerprints for optional legacy manual links.
 - Existing Gherkin, implementation, tests, documentation, and ADRs remain where they already live.
+
+Tonic's command surface is deliberately narrow: `test`, `context`, `check`, and
+`acknowledge`. Implementation relationships are discovered from successful
+execution; they cannot be maintained manually.
 
 ## Development
 
