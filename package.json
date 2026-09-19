@@ -1,6 +1,27 @@
 {
-  "name": "tonic",
+  "name": "@stuplum/tonic",
   "version": "0.1.0",
+  "description": "Experimental executable-Gherkin context and change-attention tooling for coding agents.",
+  "keywords": [
+    "bdd",
+    "cucumber",
+    "gherkin",
+    "ai-agents",
+    "developer-tools"
+  ],
+  "author": "stuplum",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stuplum/tonic.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stuplum/tonic/issues"
+  },
+  "homepage": "https://github.com/stuplum/tonic#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "packageManager": "pnpm@10.27.0",
   "engines": {
@@ -20,15 +41,17 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "tonic": "./dist/cli.js"
+    "tonic": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "pretest": "pnpm build",
+    "prepublishOnly": "pnpm verify",
     "test": "cucumber-js --import 'features/step_definitions/**/*.ts'",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm typecheck && pnpm test"

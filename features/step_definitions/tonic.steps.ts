@@ -201,7 +201,7 @@ Given(
     await writeProjectFile({
       content: [
         'import assert from "node:assert/strict";',
-        'import { When, Then } from "tonic/cucumber";',
+        'import { When, Then } from "@stuplum/tonic/cucumber";',
         'import { takePayment } from "../../src/payment.ts";',
         'import { recordPayment } from "../../src/payment-audit.ts";',
         "",
@@ -260,7 +260,7 @@ Given(
     await writeProjectFile({
       content: [
         'import assert from "node:assert/strict";',
-        'import { When, Then } from "tonic/cucumber";',
+        'import { When, Then } from "@stuplum/tonic/cucumber";',
         `import { takePayment } from "../../${artifactPath.replace(/\.ts$/, "")}";`,
         "",
         'let result = "";',
@@ -318,7 +318,7 @@ Given(
     await writeProjectFile({
       content: [
         'import assert from "node:assert/strict";',
-        'import { Then, When } from "tonic/cucumber";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
         'import { takePayment } from "@payments/payment.ts";',
         "",
         'let result = "";',
@@ -372,7 +372,7 @@ Given(
     });
     await writeProjectFile({
       content: [
-        'import { When } from "tonic/cucumber";',
+        'import { When } from "@stuplum/tonic/cucumber";',
         'import { takePayment } from "../../src/missing.ts";',
         "",
         'When("the customer pays", function () {',
@@ -415,7 +415,7 @@ Given(
     await writeProjectFile({
       content: [
         'import assert from "node:assert/strict";',
-        'import { Then, When } from "tonic/cucumber";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
         "",
         'let result = "";',
         "",
@@ -466,7 +466,7 @@ Given(
     await writeProjectFile({
       content: [
         'import assert from "node:assert/strict";',
-        'import { Then, When } from "tonic/cucumber";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
         'import { takePayment } from "../../src/payment.ts";',
         "",
         'let result = "";',
@@ -647,8 +647,9 @@ async function linkTonicPackage({
   projectDirectory: string;
 }) {
   const nodeModulesDirectory = join(projectDirectory, "node_modules");
-  await mkdir(nodeModulesDirectory, { recursive: true });
-  await symlink(resolve("."), join(nodeModulesDirectory, "tonic"), "dir");
+  const scopeDirectory = join(nodeModulesDirectory, "@stuplum");
+  await mkdir(scopeDirectory, { recursive: true });
+  await symlink(resolve("."), join(scopeDirectory, "tonic"), "dir");
 }
 
 async function writeExecutableRequirement({
@@ -677,7 +678,7 @@ async function writeExecutableRequirement({
     content: [
       'import assert from "node:assert/strict";',
       'import { writeFile } from "node:fs/promises";',
-      'import { Given, Then } from "tonic/cucumber";',
+      'import { Given, Then } from "@stuplum/tonic/cucumber";',
       "",
       "let runnerAvailable: boolean = false;",
       "",

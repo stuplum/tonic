@@ -5,6 +5,20 @@ The Gherkin remains the readable source of business behaviour for product,
 engineering, and agents. Tonic generates only hidden relationship metadata; it
 does not generate another description of the requirement.
 
+> **Status:** experimental 0.1 software. The current evidence shows that Tonic
+> can provide focused requirement-to-code navigation, but has not yet shown
+> enough benefit over ordinary Gherkin, Cucumber, and repository rules to be
+> considered established infrastructure.
+
+This repository is currently unlicensed. Its source is public for evaluation,
+but no permission to copy, modify, or redistribute it is granted.
+
+## Installation
+
+```sh
+pnpm add --save-dev @stuplum/tonic
+```
+
 ## Repository workflow
 
 Write an executable requirement with a stable requirement tag:
@@ -91,7 +105,7 @@ By default, Tonic discovers `features/**/*.feature` and
 package supplied by Tonic:
 
 ```ts
-import { Given, Then, When } from "tonic/cucumber";
+import { Given, Then, When } from "@stuplum/tonic/cucumber";
 ```
 
 No Tonic configuration file is required. Repositories can override discovery
@@ -139,9 +153,12 @@ cd /path/to/tonic
 npm link
 
 cd /path/to/consumer
-npm link --no-save --package-lock=false tonic
+npm link --no-save --package-lock=false @stuplum/tonic
 ```
 
 `npm link` runs Tonic's `prepare` script, so `dist` is rebuilt before the link
 is used. The consumer can then invoke `tonic` from its existing package or Nx
 scripts.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
+[RELEASING.md](RELEASING.md) for the maintainer release checklist.
