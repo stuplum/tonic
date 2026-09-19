@@ -356,6 +356,37 @@ Given(
 );
 
 Given(
+  "an executable requirement imports a missing implementation",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        'import { When } from "tonic/cucumber";',
+        'import { takePayment } from "../../src/missing.ts";',
+        "",
+        'When("the customer pays", function () {',
+        "  takePayment();",
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
   "an executable requirement dynamically imports {string} with a query",
   async function (this: TonicWorld, artifactPath: string) {
     await linkTonicPackage({ projectDirectory: this.projectDirectory });
@@ -522,6 +553,10 @@ Then(
     assert.match(commandOutput(this), /No step definitions matched/);
   },
 );
+
+Then("the command reports the missing implementation import", function (this: TonicWorld) {
+  assert.match(commandOutput(this), /src\/missing\.ts/);
+});
 
 Then(
   "the command warns that dynamic module coverage may be unreliable",

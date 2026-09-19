@@ -31,3 +31,10 @@ Feature: Fail clearly when executable requirement discovery is unreliable
     When I run "tonic context apps/public/src/utils/payment.ts"
     Then the command succeeds
     And the command returns the current Gherkin for requirement "PAY-001"
+
+  Scenario: Report a step definition import failure
+    Given an empty project
+    And an executable requirement imports a missing implementation
+    When I run "tonic test"
+    Then the command fails
+    And the command reports the missing implementation import
