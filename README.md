@@ -46,6 +46,12 @@ is part of normal implementation work:
 - Before editing an implementation file, run `tonic context <path>` and treat
   any returned Gherkin as its current business and acceptance contract.
 - `No compiled context` means no related executable requirement is known.
+- Review decision records relevant to implementation being reconsidered.
+  Accepted ADRs preserve earlier reasoning; they are context, not immutable
+  instructions.
+- If current requirements invalidate an ADR's assumptions, preserve the
+  historical ADR and add a superseding ADR only when the replacement is an
+  architecturally significant decision.
 - Acknowledge a changed requirement only after reconsidering every reported
   implementation file.
 ```
