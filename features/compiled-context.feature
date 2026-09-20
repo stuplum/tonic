@@ -47,3 +47,18 @@ Feature: Compile executable requirements into implementation context
     When I run "tonic context src/payment-audit.ts"
     Then the command fails
     And the command reports no compiled context for "src/payment-audit.ts"
+
+  Scenario: Retrieve compiled context with an absolute implementation path
+    Given an empty project
+    And executable requirement "PAY-001" exercises "src/payment.ts"
+    When I run "tonic test"
+    Then the command succeeds
+    When I run tonic context with the absolute path to "src/payment.ts"
+    Then the command succeeds
+    And the command returns the current Gherkin for requirement "PAY-001"
+
+  Scenario: Reject an absolute implementation path outside the project
+    Given an empty project
+    When I run tonic context with an absolute path outside the project
+    Then the command fails
+    And the command reports that the path must be inside the project
