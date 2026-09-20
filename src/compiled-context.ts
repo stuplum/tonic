@@ -299,6 +299,9 @@ export async function readArtifactGherkin({
     artifact: relativeArtifact,
     projectDirectory,
   });
+  if (!context) {
+    return [];
+  }
   const sources = [
     ...new Set(context.requirements.map((requirement) => requirement.source)),
   ].sort();
@@ -394,7 +397,7 @@ async function readContext({
     content = await readFile(path, "utf8");
   } catch (error) {
     if (isMissingFile(error)) {
-      throw new Error(`No compiled context for ${artifact}`);
+      return undefined;
     }
     throw error;
   }

@@ -73,6 +73,10 @@ async function runContext({
   }
 
   const sources = await readArtifactGherkin({ artifact, projectDirectory });
+  if (sources.length === 0) {
+    process.stdout.write(`No compiled context for ${artifact}\n`);
+    return;
+  }
   for (const source of sources) {
     process.stdout.write(`${source.content.trim()}\n`);
   }
