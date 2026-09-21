@@ -487,6 +487,59 @@ Given(
 );
 
 Given(
+  "one executable feature contains requirement IDs {string} and {string}",
+  async function (
+    this: TonicWorld,
+    firstRequirementId: string,
+    secondRequirementId: string,
+  ) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        `@${firstRequirementId} @${secondRequirementId}`,
+        "Feature: Take payments",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays 10 pounds",
+        "    Then the payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/payments.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment(amount: number) {",
+        '  return amount > 0 ? "accepted" : "declined";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment.ts",
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
+        'import { takePayment } from "../../src/payment.ts";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays 10 pounds", function () {',
+        "  result = takePayment(10);",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
   "malformed compiled context exists for {string}",
   async function (this: TonicWorld, artifactPath: string) {
     await writeProjectFile({
@@ -574,6 +627,18 @@ Then(
     assert.match(
       commandOutput(this),
       new RegExp(`Duplicate requirement ID ${requirementId}`),
+    );
+  },
+);
+
+Then(
+  "the command reports that {string} must contain one requirement ID",
+  function (this: TonicWorld, source: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(
+        `${escapeRegex(source)} must contain at most one requirement ID`,
+      ),
     );
   },
 );

@@ -74,6 +74,11 @@ export async function compileFeatureExecutions({
       "utf8",
     );
     const ids = requirementIds(feature);
+    if (ids.length > 1) {
+      throw new Error(
+        `${execution.source} must contain at most one requirement ID. Found: ${ids.join(", ")}`,
+      );
+    }
     for (const id of ids) {
       const existingSource = requirementSources.get(id);
       if (existingSource && existingSource !== execution.source) {
