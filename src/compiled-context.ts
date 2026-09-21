@@ -66,13 +66,10 @@ export async function compileFeatureExecutions({
   const compiledFeatures = [];
 
   for (const execution of executions) {
-    const feature = await readFile(
-      resolveProjectPath({
-        projectDirectory,
-        relativePath: execution.source,
-      }),
-      "utf8",
-    );
+    const feature = await readRequirementSource({
+      projectDirectory,
+      source: execution.source,
+    });
     const ids = requirementIds(feature);
     for (const id of ids) {
       const existingSource = requirementSources.get(id);
@@ -285,10 +282,7 @@ export async function readArtifactGherkin({
   ].sort();
   return Promise.all(
     sources.map(async (source) => ({
-      content: await readFile(
-        resolveProjectPath({ projectDirectory, relativePath: source }),
-        "utf8",
-      ),
+      content: await readRequirementSource({ projectDirectory, source }),
       source,
     })),
   );
@@ -333,13 +327,32 @@ async function currentFingerprint({
     return existing;
   }
 
-  const feature = await readFile(
-    resolveProjectPath({ projectDirectory, relativePath: source }),
-    "utf8",
-  );
+  const feature = await readRequirementSource({ projectDirectory, source });
   const fingerprint = calculateFingerprint(feature);
   fingerprints.set(source, fingerprint);
   return fingerprint;
+}
+
+async function readRequirementSource({
+  projectDirectory,
+  source,
+}: {
+  projectDirectory: string;
+  source: string;
+}) {
+  try {
+    return await readFile(
+      resolveProjectPath({ projectDirectory, relativePath: source }),
+      "utf8",
+    );
+  } catch (error) {
+    if (isMissingFile(error)) {
+      throw new Error(
+        `Requirement source ${source} no longer exists. Run tonic test.`,
+      );
+    }
+    throw error;
+  }
 }
 
 async function readContext({

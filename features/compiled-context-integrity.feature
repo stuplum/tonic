@@ -21,3 +21,13 @@ Feature: Refuse or expose unreliable compiled context
     When I run "tonic context src/payment.ts"
     Then the command fails
     And the command reports invalid compiled context
+
+  Scenario: Explain when a compiled requirement source no longer exists
+    Given an empty project
+    And executable requirement "PAY-001" exercises "src/payment.ts"
+    When I run "tonic test"
+    Then the command succeeds
+    Given the source for requirement "PAY-001" has been deleted
+    When I run "tonic check"
+    Then the command fails
+    And the command reports that requirement source "features/PAY-001.feature" no longer exists
