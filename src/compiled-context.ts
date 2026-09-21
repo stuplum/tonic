@@ -33,6 +33,14 @@ type CoverageFile = {
     }>;
     url: string;
   }>;
+  "source-map-cache"?: Record<
+    string,
+    {
+      data?: {
+        sources?: unknown;
+      };
+    }
+  >;
 };
 
 const compiledDirectory = ".tonic/compiled";
@@ -195,11 +203,10 @@ export async function collectExecutedArtifacts({
 
   for (const coverage of coverageFiles) {
     for (const script of coverage.result) {
-      if (!script.url.startsWith("file:")) {
-        continue;
-      }
-
-      const path = await resolveCoveredFile(script.url);
+      const path = await resolveCoveredFile({
+        coverage,
+        url: script.url,
+      });
       if (
         !path ||
         steps.has(path) ||
@@ -447,7 +454,31 @@ function coverageRangeKey({
   return `${url}:${range.startOffset}:${range.endOffset}`;
 }
 
-async function resolveCoveredFile(url: string) {
+async function resolveCoveredFile({
+  coverage,
+  url,
+}: {
+  coverage: CoverageFile;
+  url: string;
+}) {
+  if (url.startsWith("file:")) {
+    return resolveFileUrl(url);
+  }
+
+  const sources = coverage["source-map-cache"]?.[url]?.data?.sources;
+  if (
+    !Array.isArray(sources) ||
+    sources.length !== 1 ||
+    typeof sources[0] !== "string" ||
+    !sources[0].startsWith("file:")
+  ) {
+    return undefined;
+  }
+
+  return resolveFileUrl(sources[0]);
+}
+
+async function resolveFileUrl(url: string) {
   try {
     const path = fileURLToPath(url);
     const queryIndex = path.indexOf("?");
