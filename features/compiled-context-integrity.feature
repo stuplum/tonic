@@ -38,3 +38,12 @@ Feature: Refuse or expose unreliable compiled context
     When I run "tonic check"
     Then the command fails
     And the command reports that requirement source "features/PAY-001.feature" no longer exists
+
+  Scenario: Ignore an application module that is imported but not exercised
+    Given an empty project
+    And an executable requirement imports "src/payment.ts" without exercising it
+    When I run "tonic test"
+    Then the command succeeds
+    When I run "tonic context src/payment.ts"
+    Then the command fails
+    And the command reports no compiled context for "src/payment.ts"
