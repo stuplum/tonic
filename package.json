@@ -52,7 +52,7 @@
     "prepare": "npm run build",
     "pretest": "pnpm build",
     "prepublishOnly": "pnpm verify",
-    "test": "cucumber-js --import 'features/step_definitions/**/*.ts'",
+    "test": "node --import tsx ./node_modules/@cucumber/cucumber/bin/cucumber.js --import 'features/step_definitions/**/*.ts'",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm typecheck && pnpm test"
   },
