@@ -8,6 +8,8 @@ import {
   resolve,
 } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateMessages } from "@cucumber/gherkin";
+import { IdGenerator, SourceMediaType } from "@cucumber/messages";
 import { glob } from "glob";
 import { calculateFingerprint } from "./fingerprint.js";
 
@@ -421,11 +423,25 @@ async function writeContext({
 }
 
 function requirementIds(feature: string) {
+  const envelopes = generateMessages(
+    feature,
+    "requirement.feature",
+    SourceMediaType.TEXT_X_CUCUMBER_GHERKIN_PLAIN,
+    {
+      includeGherkinDocument: false,
+      includePickles: true,
+      includeSource: false,
+      newId: IdGenerator.incrementing(),
+    },
+  );
+
   return [
     ...new Set(
-      [...feature.matchAll(/(?:^|\s)@([A-Z][A-Z0-9]*-\d+)\b/g)].map(
-        (match) => match[1],
-      ),
+      envelopes
+        .flatMap((envelope) => envelope.pickle?.tags ?? [])
+        .map((tag) => tag.name)
+        .filter((tag) => /^@[A-Z][A-Z0-9]*-\d+$/.test(tag))
+        .map((tag) => tag.slice(1)),
     ),
   ];
 }

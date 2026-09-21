@@ -47,3 +47,10 @@ Feature: Refuse or expose unreliable compiled context
     When I run "tonic context src/payment.ts"
     Then the command succeeds
     And the command reports no compiled context for "src/payment.ts"
+
+  Scenario: Ignore requirement-like text outside Gherkin tags
+    Given an empty project
+    And an executable requirement contains requirement-like comments and data
+    When I run "tonic test"
+    Then the command succeeds
+    And compiled context for "src/payment.ts" contains only requirement "PAY-001"

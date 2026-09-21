@@ -511,6 +511,59 @@ Given(
 );
 
 Given(
+  "an executable requirement contains requirement-like comments and data",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  # Historical reference: @PAY-009",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays with requirement data:",
+        '      """',
+        "      @PAY-010",
+        '      """',
+        "    Then the payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment() {",
+        '  return "accepted";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment.ts",
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
+        'import { takePayment } from "../../src/payment.ts";',
+        "",
+        'let result = "";',
+        "",
+        'When("the customer pays with requirement data:", function (_requirementData: string) {',
+        "  result = takePayment();",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
   "requirement ID {string} appears in two executable feature files",
   async function (this: TonicWorld, requirementId: string) {
     await linkTonicPackage({ projectDirectory: this.projectDirectory });
@@ -752,6 +805,26 @@ Then(
       new RegExp(
         `Requirement source ${escapeRegex(source)} no longer exists\\. Run tonic test\\.`,
       ),
+    );
+  },
+);
+
+Then(
+  "compiled context for {string} contains only requirement {string}",
+  async function (
+    this: TonicWorld,
+    artifactPath: string,
+    requirementId: string,
+  ) {
+    const context = JSON.parse(
+      await readFile(
+        join(this.projectDirectory, `.tonic/compiled/${artifactPath}.json`),
+        "utf8",
+      ),
+    ) as { requirements: Array<{ id: string }> };
+    assert.deepEqual(
+      context.requirements.map(({ id }) => id),
+      [requirementId],
     );
   },
 );
