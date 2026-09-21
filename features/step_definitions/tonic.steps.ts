@@ -564,6 +564,98 @@ Given(
 );
 
 Given(
+  "an executable requirement with a parallel Cucumber profile",
+  async function (this: TonicWorld) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: "module.exports = { default: { parallel: 4 } };\n",
+      projectDirectory: this.projectDirectory,
+      relativePath: "cucumber.cjs",
+    });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario Outline: Accept a valid payment",
+        "    When the customer pays <amount> pounds",
+        "    Then the payment is accepted",
+        "",
+        "    Examples:",
+        "      | amount |",
+        "      | 10     |",
+        "      | 20     |",
+        "      | 30     |",
+        "      | 40     |",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment(amount: number) {",
+        '  return amount > 0 ? "accepted" : "declined";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "src/payment.ts",
+    });
+    await writeProjectFile({
+      content: [
+        'import assert from "node:assert/strict";',
+        'import { appendFileSync } from "node:fs";',
+        'import { Then, When } from "@stuplum/tonic/cucumber";',
+        'import { takePayment } from "../../src/payment.ts";',
+        "",
+        'appendFileSync("workers.log", `${process.env.NODE_V8_COVERAGE}\\t${process.pid}\\n`);',
+        "void takePayment(0);",
+        'let result = "";',
+        "",
+        'When("the customer pays {int} pounds", function (amount: number) {',
+        "  result = takePayment(amount);",
+        "});",
+        "",
+        'Then("the payment is accepted", function () {',
+        '  assert.equal(result, "accepted");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Then(
+  "Tonic uses one worker for both coverage runs",
+  async function (this: TonicWorld) {
+    const workers = (
+      await readFile(join(this.projectDirectory, "workers.log"), "utf8")
+    )
+      .trim()
+      .split("\n")
+      .map((line) => line.split("\t"));
+    const baselineWorkers = new Set(
+      workers
+        .filter(([directory]) => directory.includes("tonic-baseline-"))
+        .map(([, processId]) => processId),
+    );
+    const realWorkers = new Set(
+      workers
+        .filter(([directory]) => directory.includes("tonic-coverage-"))
+        .map(([, processId]) => processId),
+    );
+    assert.equal(
+      baselineWorkers.size,
+      1,
+      `Baseline workers: ${baselineWorkers.size}`,
+    );
+    assert.equal(realWorkers.size, 1, `Real workers: ${realWorkers.size}`);
+  },
+);
+
+Given(
   "requirement ID {string} appears in two executable feature files",
   async function (this: TonicWorld, requirementId: string) {
     await linkTonicPackage({ projectDirectory: this.projectDirectory });
