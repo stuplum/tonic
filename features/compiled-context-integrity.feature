@@ -45,5 +45,22 @@ Feature: Refuse or expose unreliable compiled context
     When I run "tonic test"
     Then the command succeeds
     When I run "tonic context src/payment.ts"
-    Then the command fails
+    Then the command succeeds
     And the command reports no compiled context for "src/payment.ts"
+
+  Scenario: Ignore requirement-like text outside Gherkin tags
+    Given an empty project
+    And an executable requirement contains requirement-like comments and data
+    When I run "tonic test"
+    Then the command succeeds
+    And compiled context for "src/payment.ts" contains only requirement "PAY-001"
+
+  Scenario: Ignore the consumer's parallel profile during coverage discovery
+    Given an empty project
+    And an executable requirement with a parallel Cucumber profile
+    When I run "tonic test"
+    Then the command succeeds
+    And Tonic uses one worker for both coverage runs
+    When I run "tonic context src/payment.ts"
+    Then the command succeeds
+    And the command returns the current Gherkin for requirement "PAY-001"

@@ -11,6 +11,12 @@ importers:
       '@cucumber/cucumber':
         specifier: ^12.2.0
         version: 12.9.0
+      '@cucumber/gherkin':
+        specifier: ^38.0.0
+        version: 38.0.0
+      '@cucumber/messages':
+        specifier: ^32.3.1
+        version: 32.3.1
       glob:
         specifier: ^13.0.6
         version: 13.0.6

@@ -38,7 +38,11 @@ export async function runExecutableRequirements({
   const typeScriptConfiguration = await findTypeScriptConfiguration({
     projectDirectory,
   });
-  const cucumberArguments = stepPaths.flatMap((path) => ["--import", path]);
+  const cucumberArguments = [
+    "--parallel",
+    "0",
+    ...stepPaths.flatMap((path) => ["--import", path]),
+  ];
   const executions = [];
   const warnedDynamicModules = new Set<string>();
   for (const path of await findDynamicImportStepFiles({

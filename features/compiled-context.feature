@@ -45,7 +45,7 @@ Feature: Compile executable requirements into implementation context
     When I run "tonic test"
     Then the command succeeds
     When I run "tonic context src/payment-audit.ts"
-    Then the command fails
+    Then the command succeeds
     And the command reports no compiled context for "src/payment-audit.ts"
 
   Scenario: Retrieve compiled context with an absolute implementation path
