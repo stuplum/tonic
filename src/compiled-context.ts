@@ -1,5 +1,12 @@
 import { mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 import { glob } from "glob";
 import { calculateFingerprint } from "./fingerprint.js";
@@ -276,7 +283,14 @@ export async function readArtifactGherkin({
   artifact: string;
   projectDirectory: string;
 }) {
-  const context = await readContext({ artifact, projectDirectory });
+  const relativeArtifact = await normalizeArtifactPath({
+    artifact,
+    projectDirectory,
+  });
+  const context = await readContext({
+    artifact: relativeArtifact,
+    projectDirectory,
+  });
   const sources = [
     ...new Set(context.requirements.map((requirement) => requirement.source)),
   ].sort();
@@ -564,6 +578,35 @@ function resolveProjectPath({
 
 function normalizePath(path: string) {
   return path.split("\\").join("/");
+}
+
+async function normalizeArtifactPath({
+  artifact,
+  projectDirectory,
+}: {
+  artifact: string;
+  projectDirectory: string;
+}) {
+  const directory = await realpath(projectDirectory);
+  let artifactPath = resolve(directory, artifact);
+  try {
+    artifactPath = await realpath(artifactPath);
+  } catch (error) {
+    if (!isMissingFile(error)) {
+      throw error;
+    }
+  }
+  const relativeArtifact = relative(directory, artifactPath);
+
+  if (
+    relativeArtifact === "" ||
+    relativeArtifact.startsWith("..") ||
+    isAbsolute(relativeArtifact)
+  ) {
+    throw new Error(`${artifact} must be inside the project`);
+  }
+
+  return normalizePath(relativeArtifact);
 }
 
 function parseArtifactContext({

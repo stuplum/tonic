@@ -86,6 +86,34 @@ When("I run {string}", function (this: TonicWorld, command: string) {
   });
 });
 
+When(
+  "I run tonic context with the absolute path to {string}",
+  function (this: TonicWorld, artifactPath: string) {
+    this.result = spawnSync(
+      process.execPath,
+      [cliPath, "context", resolve(this.projectDirectory, artifactPath)],
+      {
+        cwd: this.projectDirectory,
+        encoding: "utf8",
+      },
+    );
+  },
+);
+
+When(
+  "I run tonic context with an absolute path outside the project",
+  function (this: TonicWorld) {
+    this.result = spawnSync(
+      process.execPath,
+      [cliPath, "context", resolve(this.projectDirectory, "../outside.ts")],
+      {
+        cwd: this.projectDirectory,
+        encoding: "utf8",
+      },
+    );
+  },
+);
+
 Then("the command succeeds", function (this: TonicWorld) {
   assert.equal(commandResult(this).status, 0, commandOutput(this));
 });
@@ -544,6 +572,13 @@ Then(
       commandOutput(this),
       new RegExp(`No compiled context for ${artifactPath}`),
     );
+  },
+);
+
+Then(
+  "the command reports that the path must be inside the project",
+  function (this: TonicWorld) {
+    assert.match(commandOutput(this), /must be inside the project/);
   },
 );
 
