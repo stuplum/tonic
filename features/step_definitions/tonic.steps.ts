@@ -471,6 +471,46 @@ Given(
 );
 
 Given(
+  "an executable requirement imports {string} without exercising it",
+  async function (this: TonicWorld, artifactPath: string) {
+    await linkTonicPackage({ projectDirectory: this.projectDirectory });
+    await writeProjectFile({
+      content: [
+        "@PAY-001",
+        "Feature: Take a payment",
+        "  Scenario: Load the payment adapter",
+        "    When the payment adapter is loaded",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/PAY-001.feature",
+    });
+    await writeProjectFile({
+      content: [
+        "export function takePayment() {",
+        '  return "accepted";',
+        "}",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: artifactPath,
+    });
+    await writeProjectFile({
+      content: [
+        'import { When } from "@stuplum/tonic/cucumber";',
+        "",
+        'When("the payment adapter is loaded", async function () {',
+        '  await import("../../src/payment.ts");',
+        "});",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: "features/step_definitions/payment.steps.ts",
+    });
+  },
+);
+
+Given(
   "requirement ID {string} appears in two executable feature files",
   async function (this: TonicWorld, requirementId: string) {
     await linkTonicPackage({ projectDirectory: this.projectDirectory });

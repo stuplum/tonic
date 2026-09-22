@@ -470,6 +470,14 @@ function executedFunctionsBeyondBaseline(
   return script.functions
     .filter(
       (fn) =>
+        !isAnonymousEnclosingFunction({
+          candidate: fn,
+          functions: script.functions,
+        }) &&
+        !isEarlierFunctionWithSameName({
+          candidate: fn,
+          functions: script.functions,
+        }) &&
         fn.ranges.some(
           (range) =>
             range.count >
@@ -477,6 +485,50 @@ function executedFunctionsBeyondBaseline(
         ),
     )
     .map((fn) => fn.functionName);
+}
+
+function isEarlierFunctionWithSameName({
+  candidate,
+  functions,
+}: {
+  candidate: CoverageFile["result"][number]["functions"][number];
+  functions: CoverageFile["result"][number]["functions"];
+}) {
+  if (candidate.functionName === "") {
+    return false;
+  }
+
+  return functions.some(
+    (fn) =>
+      fn.functionName === candidate.functionName &&
+      fn.ranges[0].startOffset > candidate.ranges[0].startOffset,
+  );
+}
+
+function isAnonymousEnclosingFunction({
+  candidate,
+  functions,
+}: {
+  candidate: CoverageFile["result"][number]["functions"][number];
+  functions: CoverageFile["result"][number]["functions"];
+}) {
+  if (candidate.functionName !== "") {
+    return false;
+  }
+
+  return candidate.ranges.some((candidateRange) =>
+    functions.some(
+      (fn) =>
+        fn !== candidate &&
+        fn.ranges.some(
+          (range) =>
+            candidateRange.startOffset <= range.startOffset &&
+            candidateRange.endOffset >= range.endOffset &&
+            (candidateRange.startOffset < range.startOffset ||
+              candidateRange.endOffset > range.endOffset),
+        ),
+    ),
+  );
 }
 
 function coverageRangeKey({
