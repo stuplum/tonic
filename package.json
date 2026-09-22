@@ -1,6 +1,6 @@
 {
   "name": "@stuplum/tonic",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Experimental executable-Gherkin context and change-attention tooling for coding agents.",
   "keywords": [
     "bdd",

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 - 2026-09-22
+
+- Supports Node.js 20, 22, and 24 when loading TypeScript acceptance steps and resolving TSX coverage sources.
+- Enforces one requirement ID per feature and parses IDs from Gherkin tags rather than comments or scenario data.
+- Warns when executable features have no requirement ID.
+- Supports absolute artifact paths and treats missing compiled context as a successful empty query.
+- Avoids attributing imported-but-unexecuted modules to a requirement.
+- Reports missing requirement source files clearly.
+- Forces single-worker Cucumber execution so baseline and requirement coverage remain comparable.
+
 ## 0.1.0 - 2026-09-19
 
 Initial experimental release.
