@@ -99,6 +99,9 @@ export async function compileFeatureExecutions({
     }));
 
     if (requirements.length === 0) {
+      process.stderr.write(
+        `No requirement ID found in ${execution.source}; no context was compiled.\n`,
+      );
       continue;
     }
 

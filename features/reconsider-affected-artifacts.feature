@@ -8,6 +8,7 @@ Feature: Run executable requirements with minimal setup
     When I run "tonic test"
     Then the command succeeds
     And the executable requirement ran
+    And the command warns that "features/example.feature" has no requirement ID
     And no legacy Tonic files are created
 
   Scenario: Fail when an executable requirement is not satisfied

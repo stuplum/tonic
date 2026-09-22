@@ -611,6 +611,18 @@ Then(
 );
 
 Then(
+  "the command warns that {string} has no requirement ID",
+  function (this: TonicWorld, source: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(
+        `No requirement ID found in ${escapeRegex(source)}; no context was compiled\\.`,
+      ),
+    );
+  },
+);
+
+Then(
   "the command reports duplicate requirement ID {string}",
   function (this: TonicWorld, requirementId: string) {
     assert.match(
