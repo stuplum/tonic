@@ -7,17 +7,25 @@ installed by the package is still named `tonic`.
 
 - Confirm the release version and changelog entry.
 - Confirm the `@stuplum` npm scope is controlled by the maintainer.
-- Authenticate with npm using `npm login`.
 - Ensure the default branch passes GitHub Actions.
+- Configure `@stuplum/tonic` with an npm trusted publisher for GitHub Actions:
+  - Organization or user: `stuplum`
+  - Repository: `tonic`
+  - Workflow filename: `publish.yml`
+  - Environment: leave blank
+  - Allowed action: `npm publish`
 
 ## Publish
 
 ```sh
-pnpm install --frozen-lockfile
-pnpm verify
-npm publish --access public
+release_version=$(node --print "require('./package.json').version")
+git tag -a "v${release_version}" -m "v${release_version}"
+git push origin "v${release_version}"
 ```
 
-After npm accepts the package, create and push a matching `v0.1.0` tag and make
-a GitHub release from the changelog entry. Do not create the tag before npm
-publication succeeds.
+The tag must match the version in `package.json`. Pushing it runs the publish
+workflow, which installs locked dependencies, verifies the package, and
+publishes it through npm's short-lived OIDC credentials. No npm token is stored
+in GitHub.
+
+After npm accepts the package, create a GitHub release from the changelog entry.
