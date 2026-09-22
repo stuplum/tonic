@@ -21,6 +21,22 @@ pnpm add --save-dev @stuplum/tonic
 
 ## Repository workflow
 
+### Requirement boundary
+
+Tonic currently treats one `.feature` file as one requirement boundary. A
+feature may have one stable requirement ID; multiple requirement IDs in the
+same file are rejected because coverage and fingerprints are collected at file
+level. This is a deliberate current design decision, not an incidental parser
+limitation.
+
+True per-tag attribution would require separate scenario selection, coverage,
+and fingerprinting for every requirement ID. That option remains on the
+backlog in [issue #1](https://github.com/stuplum/tonic/issues/1) and can be
+reconsidered if real repositories need multiple requirements in one feature.
+
+See [ADR 001](docs/decisions/001-feature-file-requirement-boundary.md) for the
+decision and trade-offs.
+
 Write an executable requirement with a stable requirement tag:
 
 ```gherkin
