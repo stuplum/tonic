@@ -71,6 +71,13 @@ Given(
   },
 );
 
+Given(
+  "the source for requirement {string} has been deleted",
+  async function (this: TonicWorld, requirementId: string) {
+    await rm(join(this.projectDirectory, `features/${requirementId}.feature`));
+  },
+);
+
 When("I run {string}", function (this: TonicWorld, command: string) {
   const [, ...arguments_] = splitCommand(command);
   this.result = spawnSync(process.execPath, [cliPath, ...arguments_], {
@@ -582,6 +589,18 @@ Then(
   "the command reports invalid compiled context",
   function (this: TonicWorld) {
     assert.match(commandOutput(this), /Invalid compiled context/);
+  },
+);
+
+Then(
+  "the command reports that requirement source {string} no longer exists",
+  function (this: TonicWorld, source: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(
+        `Requirement source ${escapeRegex(source)} no longer exists\\. Run tonic test\\.`,
+      ),
+    );
   },
 );
 
