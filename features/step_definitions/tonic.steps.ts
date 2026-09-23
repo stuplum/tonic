@@ -268,6 +268,15 @@ Then(
 );
 
 Then(
+  "the command explains how to resolve decision {string}",
+  function (this: TonicWorld, decisionId: string) {
+    const output = commandOutput(this);
+    assert.match(output, new RegExp(`tonic review ${escapeRegex(decisionId)}`));
+    assert.match(output, /Supersedes/);
+  },
+);
+
+Then(
   "the command reports that decision {string} references unknown requirement {string}",
   function (
     this: TonicWorld,

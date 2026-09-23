@@ -91,6 +91,10 @@ function writeAffectedDecision({
       `Decision source: ${decision.uri}`,
       decision.content.trim(),
       "",
+      "After reconsidering:",
+      `- If it remains valid, run: tonic review ${decision.decision.id}`,
+      "- If it no longer applies, add a new decision with Supersedes and review the new decision.",
+      "",
     ].join("\n"),
   );
 }

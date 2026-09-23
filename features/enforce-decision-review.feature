@@ -21,6 +21,7 @@ Feature: Enforce review of architecture decisions
     And I run "tonic check"
     Then the command fails
     And the command reports decision "ORDER-001" for reconsideration
+    And the command explains how to resolve decision "ORDER-001"
     And the command returns the current Gherkin for requirement "ORDER-006"
     And the command returns the current source for decision "ORDER-001"
 
