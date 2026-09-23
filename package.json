@@ -45,6 +45,7 @@
   },
   "files": [
     "dist",
+    "grammar",
     "CHANGELOG.md"
   ],
   "scripts": {
