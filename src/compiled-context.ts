@@ -8,10 +8,9 @@ import {
   resolve,
 } from "node:path";
 import { fileURLToPath } from "node:url";
-import { generateMessages } from "@cucumber/gherkin";
-import { IdGenerator, SourceMediaType } from "@cucumber/messages";
 import { glob } from "glob";
 import { calculateFingerprint } from "./fingerprint.js";
+import { requirementIds } from "./gherkin-requirements.js";
 
 type RequirementContext = {
   fingerprint: string;
@@ -79,7 +78,7 @@ export async function compileFeatureExecutions({
       projectDirectory,
       source: execution.source,
     });
-    const ids = requirementIds(feature);
+    const ids = requirementIds({ content: feature, uri: execution.source });
     if (ids.length > 1) {
       throw new Error(
         `${execution.source} must contain at most one requirement ID. Found: ${ids.join(", ")}`,
@@ -420,30 +419,6 @@ async function writeContext({
 }) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${JSON.stringify(context, null, 2)}\n`, "utf8");
-}
-
-function requirementIds(feature: string) {
-  const envelopes = generateMessages(
-    feature,
-    "requirement.feature",
-    SourceMediaType.TEXT_X_CUCUMBER_GHERKIN_PLAIN,
-    {
-      includeGherkinDocument: false,
-      includePickles: true,
-      includeSource: false,
-      newId: IdGenerator.incrementing(),
-    },
-  );
-
-  return [
-    ...new Set(
-      envelopes
-        .flatMap((envelope) => envelope.pickle?.tags ?? [])
-        .map((tag) => tag.name)
-        .filter((tag) => /^@[A-Z][A-Z0-9]*-\d+$/.test(tag))
-        .map((tag) => tag.slice(1)),
-    ),
-  ];
 }
 
 async function readCoverageFiles(directory: string) {

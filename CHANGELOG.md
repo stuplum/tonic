@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Adds a standalone architecture-decision language with a distributable EBNF grammar and source-located AST.
+- Discovers `.decision` files and resolves their `Driven by requirement` relationships to tagged Gherkin.
+- Makes `tonic check` surface the complete live requirement and decision sources when a tracked Gherkin file differs from `HEAD`, without decision fingerprints or generated decision state.
+
 ## 0.1.1 - 2026-09-22
 
 - Supports Node.js 20, 22, and 24 when loading TypeScript acceptance steps and resolving TSX coverage sources.

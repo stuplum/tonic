@@ -116,6 +116,31 @@ tonic acknowledge PAY-001
 
 This acknowledgement does not require or create manual file mappings.
 
+### Experimental decision awareness
+
+Architecture decisions can be written as `.decision` source files:
+
+```text
+Decision PAY-003 "Reliable confirmation delivery"
+Driven by requirement ORDER-006
+Choose durable storage of pending confirmations
+Because accepted orders must survive delivery outages
+Accept possible duplicate delivery
+```
+
+When a tracked Gherkin file differs from `HEAD`, `tonic check` follows its
+requirement IDs to directly driven decisions. It exits unsuccessfully and prints
+the complete current Gherkin and decision sources so an agent can reconsider the
+choice with its original reasoning in view.
+
+This path uses the Git working tree rather than fingerprints and creates no
+compiled decision state. It currently considers tracked working-tree changes
+only; base-branch comparison in CI, untracked requirements, and transitive
+decision dependencies remain outside this experiment.
+
+A decision is authoritative context, not a mechanically evaluated premise.
+Tonic does not report that the decision itself has passed or failed.
+
 By default, Tonic discovers `features/**/*.feature` and
 `features/step_definitions/**/*.ts`. Step definitions import Cucumber from the
 package supplied by Tonic:
@@ -145,6 +170,7 @@ require coverage adapters; they do not require Nx.
 ## Repository files
 
 - `tonic.json` optionally overrides executable Gherkin discovery paths.
+- `**/*.decision` contains architecture decisions and remains human-authored source.
 - `.tonic/compiled/` contains generated implementation relationships and belongs in version control.
 - Existing Gherkin, implementation, tests, documentation, and ADRs remain where they already live.
 

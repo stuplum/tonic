@@ -72,6 +72,64 @@ Given(
 );
 
 Given(
+  "requirement {string} exists",
+  async function (this: TonicWorld, requirementId: string) {
+    await writeProjectFile({
+      content: [
+        `@${requirementId}`,
+        "Feature: Take a payment",
+        "  Scenario: Accept a valid payment",
+        "    When the customer pays",
+        "    Then the payment is accepted",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: `features/${requirementId}.feature`,
+    });
+  },
+);
+
+Given(
+  "decision {string} is driven by requirement {string}",
+  async function (
+    this: TonicWorld,
+    decisionId: string,
+    requirementId: string,
+  ) {
+    await writeProjectFile({
+      content: [
+        `Decision ${decisionId} "Reliable confirmation delivery"`,
+        `Driven by requirement ${requirementId}`,
+        "Choose durable storage of pending confirmations",
+        "Because accepted orders must survive delivery outages",
+        "Accept possible duplicate delivery",
+        "",
+      ].join("\n"),
+      projectDirectory: this.projectDirectory,
+      relativePath: `decisions/${decisionId}.decision`,
+    });
+  },
+);
+
+Given("the project knowledge is committed", function (this: TonicWorld) {
+  runGit({ arguments: ["init", "--quiet"], projectDirectory: this.projectDirectory });
+  runGit({ arguments: ["add", "."], projectDirectory: this.projectDirectory });
+  runGit({
+    arguments: [
+      "-c",
+      "user.name=Tonic acceptance",
+      "-c",
+      "user.email=tonic@example.invalid",
+      "commit",
+      "--quiet",
+      "-m",
+      "Baseline knowledge",
+    ],
+    projectDirectory: this.projectDirectory,
+  });
+});
+
+Given(
   "the source for requirement {string} has been deleted",
   async function (this: TonicWorld, requirementId: string) {
     await rm(join(this.projectDirectory, `features/${requirementId}.feature`));
@@ -137,6 +195,32 @@ Then(
   "the command reports {string} for reconsideration",
   function (this: TonicWorld, affectedPath: string) {
     assert.match(commandOutput(this), new RegExp(`Reconsider:.*${escapeRegex(affectedPath)}`, "s"));
+  },
+);
+
+Then(
+  "the command reports decision {string} for reconsideration",
+  function (this: TonicWorld, decisionId: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(`Reconsider decision ${escapeRegex(decisionId)}:`),
+    );
+  },
+);
+
+Then(
+  "the command reports that decision {string} references unknown requirement {string}",
+  function (
+    this: TonicWorld,
+    decisionId: string,
+    requirementId: string,
+  ) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(
+        `Decision ${escapeRegex(decisionId)} .* references unknown requirement ${escapeRegex(requirementId)}`,
+      ),
+    );
   },
 );
 
@@ -787,6 +871,19 @@ Then(
   },
 );
 
+Then(
+  "the command returns the current source for decision {string}",
+  async function (this: TonicWorld, decisionId: string) {
+    const source = `decisions/${decisionId}.decision`;
+    const decision = await readFile(join(this.projectDirectory, source), "utf8");
+    assert.ok(commandOutput(this).includes(decision.trim()));
+  },
+);
+
+Then("no generated decision state is created", async function (this: TonicWorld) {
+  await assert.rejects(access(join(this.projectDirectory, ".tonic/decisions")));
+});
+
 Then("no legacy Tonic files are created", async function (this: TonicWorld) {
   await assert.rejects(access(join(this.projectDirectory, "tonic.json")));
   await assert.rejects(access(join(this.projectDirectory, "tonic.lock")));
@@ -975,6 +1072,24 @@ async function writeJson(path: string, value: unknown) {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function runGit({
+  arguments: arguments_,
+  projectDirectory,
+}: {
+  arguments: string[];
+  projectDirectory: string;
+}) {
+  const result = spawnSync("git", arguments_, {
+    cwd: projectDirectory,
+    encoding: "utf8",
+  });
+  assert.equal(
+    result.status,
+    0,
+    result.error?.message ?? `${result.stdout}${result.stderr}`,
+  );
 }
 
 async function linkTonicPackage({

@@ -6,6 +6,10 @@ import {
   findChangedCompiledRequirements,
   readArtifactGherkin,
 } from "./compiled-context.js";
+import {
+  findDecisionsAffectedByWorkingTreeChanges,
+  type AffectedDecision,
+} from "./decision-awareness.js";
 
 try {
   await run({ arguments: process.argv.slice(2), projectDirectory: process.cwd() });
@@ -44,7 +48,10 @@ async function run({
 }
 
 async function runCheck({ projectDirectory }: { projectDirectory: string }) {
-  const changes = await findChangedCompiledRequirements({ projectDirectory });
+  const [changes, affectedDecisions] = await Promise.all([
+    findChangedCompiledRequirements({ projectDirectory }),
+    findDecisionsAffectedByWorkingTreeChanges({ projectDirectory }),
+  ]);
 
   for (const change of changes) {
     process.stdout.write(
@@ -54,9 +61,32 @@ async function runCheck({ projectDirectory }: { projectDirectory: string }) {
     );
   }
 
-  if (changes.length > 0) {
+  for (const affected of affectedDecisions) {
+    writeAffectedDecision(affected);
+  }
+
+  if (changes.length > 0 || affectedDecisions.length > 0) {
     process.exitCode = 1;
   }
+}
+
+function writeAffectedDecision({
+  decision,
+  requirement,
+}: AffectedDecision): void {
+  process.stdout.write(
+    [
+      `Reconsider decision ${decision.decision.id}: ${decision.decision.title}`,
+      `Driven by changed requirement ${requirement.id}`,
+      "",
+      `Requirement source: ${requirement.uri}`,
+      requirement.content.trim(),
+      "",
+      `Decision source: ${decision.uri}`,
+      decision.content.trim(),
+      "",
+    ].join("\n"),
+  );
 }
 
 async function runContext({
