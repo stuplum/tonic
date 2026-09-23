@@ -68,27 +68,18 @@ This reads the live `.feature` file rather than a generated summary. Agents can
 therefore request focused business context without loading all repository
 documentation.
 
-Add this small rule to the repository's agent instructions so context retrieval
-is part of normal implementation work:
+Repositories may add a small rule to their agent instructions for on-demand
+implementation context:
 
 ```markdown
-- Run `tonic check` before implementing a feature or changing architecture.
 - Before editing an implementation file, run `tonic context <path>` and treat
   any returned Gherkin as its current business and acceptance contract.
 - `No compiled context` means no related executable requirement is known.
-- Review decision records relevant to implementation being reconsidered.
-  Accepted ADRs preserve earlier reasoning; they are context, not immutable
-  instructions.
-- If current requirements invalidate an ADR's assumptions, preserve the
-  historical ADR and add a superseding ADR only when the replacement is an
-  architecturally significant decision.
 - Acknowledge a changed requirement only after reconsidering every reported
   implementation file.
 ```
 
-The CLI provides the portable mechanism; the repository instruction is the
-agent integration. It works inside or outside Nx, but still depends on the agent
-following repository instructions.
+The CLI provides the portable mechanism and works inside or outside Nx.
 
 Run the attention check before changing implementation and in CI:
 
@@ -115,6 +106,51 @@ tonic acknowledge PAY-001
 ```
 
 This acknowledgement does not require or create manual file mappings.
+
+### Enforceable architecture decisions
+
+Architecture decisions can be written as `.decision` source files:
+
+```text
+Decision PAY-003 "Reliable confirmation delivery"
+Driven by requirement ORDER-006
+Choose durable storage of pending confirmations
+Because accepted orders must survive delivery outages
+Accept possible duplicate delivery
+```
+
+Decisions can be driven by tagged Gherkin, another decision, or any ordinary
+repository file:
+
+```text
+Driven by requirement ORDER-006
+Driven by decision OPS-002
+Driven by source requirements/order-confirmation.md
+```
+
+Review an active decision once its sources and choice agree:
+
+```sh
+tonic review PAY-003
+```
+
+This writes a small, generated `.tonic/reviews/PAY-003.json` receipt containing
+only content fingerprints and source identities. Commit the receipt. Subsequent
+`tonic check` calls fail if the decision or any declared driver changes, and
+print the complete live sources that must be reconsidered. The receipt can then
+be refreshed if the decision remains valid, or a new `.decision` can supersede
+the historical decision.
+
+Supersession is validated as a single, acyclic history. Only active decisions
+require current review receipts. This works in a clean CI checkout and does not
+depend on Git working-tree state.
+
+Add `tonic check` to the repository's normal verification command so agents and
+CI cannot silently bypass decision review. No agent-specific ADR instruction is
+required.
+
+A decision is authoritative context, not a mechanically evaluated premise.
+Tonic does not report that the decision itself has passed or failed.
 
 By default, Tonic discovers `features/**/*.feature` and
 `features/step_definitions/**/*.ts`. Step definitions import Cucumber from the
@@ -145,12 +181,14 @@ require coverage adapters; they do not require Nx.
 ## Repository files
 
 - `tonic.json` optionally overrides executable Gherkin discovery paths.
+- `**/*.decision` contains architecture decisions and remains human-authored source.
 - `.tonic/compiled/` contains generated implementation relationships and belongs in version control.
+- `.tonic/reviews/` contains generated decision-review receipts and belongs in version control.
 - Existing Gherkin, implementation, tests, documentation, and ADRs remain where they already live.
 
-Tonic's command surface is deliberately narrow: `test`, `context`, `check`, and
-`acknowledge`. Implementation relationships are discovered from successful
-execution; they cannot be maintained manually.
+Tonic's command surface is deliberately narrow: `test`, `context`, `check`,
+`acknowledge`, and `review`. Implementation relationships are discovered from
+successful execution; they cannot be maintained manually.
 
 ## Development
 

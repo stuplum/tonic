@@ -6,6 +6,11 @@ import {
   findChangedCompiledRequirements,
   readArtifactGherkin,
 } from "./compiled-context.js";
+import {
+  findDecisionsRequiringReview,
+  reviewDecision,
+  type DecisionRequiringReview,
+} from "./decision-awareness.js";
 
 try {
   await run({ arguments: process.argv.slice(2), projectDirectory: process.cwd() });
@@ -38,13 +43,19 @@ async function run({
     case "acknowledge":
       await runAcknowledge({ commandArguments, projectDirectory });
       return;
+    case "review":
+      await runReview({ commandArguments, projectDirectory });
+      return;
     default:
-      throw new Error("Usage: tonic <test|context|check|acknowledge>");
+      throw new Error("Usage: tonic <test|context|check|acknowledge|review>");
   }
 }
 
 async function runCheck({ projectDirectory }: { projectDirectory: string }) {
-  const changes = await findChangedCompiledRequirements({ projectDirectory });
+  const [changes, affectedDecisions] = await Promise.all([
+    findChangedCompiledRequirements({ projectDirectory }),
+    findDecisionsRequiringReview({ projectDirectory }),
+  ]);
 
   for (const change of changes) {
     process.stdout.write(
@@ -54,9 +65,52 @@ async function runCheck({ projectDirectory }: { projectDirectory: string }) {
     );
   }
 
-  if (changes.length > 0) {
+  for (const affected of affectedDecisions) {
+    writeAffectedDecision(affected);
+  }
+
+  if (changes.length > 0 || affectedDecisions.length > 0) {
     process.exitCode = 1;
   }
+}
+
+function writeAffectedDecision({
+  decision,
+  drivers,
+}: DecisionRequiringReview): void {
+  process.stdout.write(
+    [
+      `Reconsider decision ${decision.decision.id}: ${decision.decision.title}`,
+      "",
+      ...drivers.flatMap((driver) => [
+        `Driver source: ${driver.uri}`,
+        driver.content.trim(),
+        "",
+      ]),
+      "",
+      `Decision source: ${decision.uri}`,
+      decision.content.trim(),
+      "",
+      "After reconsidering:",
+      `- If it remains valid, run: tonic review ${decision.decision.id}`,
+      "- If it no longer applies, add a new decision with Supersedes and review the new decision.",
+      "",
+    ].join("\n"),
+  );
+}
+
+async function runReview({
+  commandArguments,
+  projectDirectory,
+}: {
+  commandArguments: string[];
+  projectDirectory: string;
+}) {
+  const [decisionId, ...remainingArguments] = commandArguments;
+  if (!decisionId || remainingArguments.length > 0) {
+    throw new Error("Usage: tonic review <decision-id>");
+  }
+  await reviewDecision({ decisionId, projectDirectory });
 }
 
 async function runContext({

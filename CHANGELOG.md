@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Adds a standalone architecture-decision language with a distributable EBNF grammar and source-located AST.
+- Resolves decision drivers to tagged Gherkin, other decisions, or ordinary repository files.
+- Adds `tonic review`, which records compact per-decision review receipts for use in local verification and CI.
+- Makes `tonic check` reject unreviewed or stale active decisions and surface their complete live sources.
+- Validates decision supersession targets, branches, and cycles while preserving superseded decisions as history.
+
 ## 0.1.1 - 2026-09-22
 
 - Supports Node.js 20, 22, and 24 when loading TypeScript acceptance steps and resolving TSX coverage sources.
