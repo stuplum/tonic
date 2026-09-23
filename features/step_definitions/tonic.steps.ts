@@ -111,6 +111,65 @@ Given(
   },
 );
 
+Given(
+  "decision {string} is driven by source {string}",
+  async function (this: TonicWorld, decisionId: string, source: string) {
+    await writeDecision({
+      decisionId,
+      driver: `source ${source}`,
+      projectDirectory: this.projectDirectory,
+    });
+  },
+);
+
+Given(
+  "decision {string} supersedes {string} for requirement {string}",
+  async function (
+    this: TonicWorld,
+    decisionId: string,
+    supersededDecisionId: string,
+    requirementId: string,
+  ) {
+    await writeDecision({
+      decisionId,
+      driver: `requirement ${requirementId}`,
+      projectDirectory: this.projectDirectory,
+      supersededDecisionId,
+    });
+  },
+);
+
+Given(
+  "source {string} exists",
+  async function (this: TonicWorld, source: string) {
+    await writeProjectFile({
+      content: "Orders must be accepted when confirmation delivery is unavailable.\n",
+      projectDirectory: this.projectDirectory,
+      relativePath: source,
+    });
+  },
+);
+
+Given(
+  "decision {string} has been reviewed",
+  function (this: TonicWorld, decisionId: string) {
+    this.result = runTonic({
+      arguments: ["review", decisionId],
+      projectDirectory: this.projectDirectory,
+    });
+    assert.equal(commandResult(this).status, 0, commandOutput(this));
+  },
+);
+
+Given(
+  "source {string} has changed",
+  async function (this: TonicWorld, source: string) {
+    const path = join(this.projectDirectory, source);
+    const existing = await readFile(path, "utf8");
+    await writeFile(path, `${existing.trim()}\nThe confirmation must survive a restart.\n`);
+  },
+);
+
 Given("the project knowledge is committed", function (this: TonicWorld) {
   runGit({ arguments: ["init", "--quiet"], projectDirectory: this.projectDirectory });
   runGit({ arguments: ["add", "."], projectDirectory: this.projectDirectory });
@@ -138,9 +197,9 @@ Given(
 
 When("I run {string}", function (this: TonicWorld, command: string) {
   const [, ...arguments_] = splitCommand(command);
-  this.result = spawnSync(process.execPath, [cliPath, ...arguments_], {
-    cwd: this.projectDirectory,
-    encoding: "utf8",
+  this.result = runTonic({
+    arguments: arguments_,
+    projectDirectory: this.projectDirectory,
   });
 });
 
@@ -884,6 +943,33 @@ Then("no generated decision state is created", async function (this: TonicWorld)
   await assert.rejects(access(join(this.projectDirectory, ".tonic/decisions")));
 });
 
+Then(
+  "a review receipt exists for decision {string}",
+  async function (this: TonicWorld, decisionId: string) {
+    await access(
+      join(this.projectDirectory, `.tonic/reviews/${decisionId}.json`),
+    );
+  },
+);
+
+Then(
+  "the command returns source {string}",
+  async function (this: TonicWorld, source: string) {
+    const content = await readFile(join(this.projectDirectory, source), "utf8");
+    assert.ok(commandOutput(this).includes(content.trim()));
+  },
+);
+
+Then(
+  "the command reports unknown superseded decision {string}",
+  function (this: TonicWorld, decisionId: string) {
+    assert.match(
+      commandOutput(this),
+      new RegExp(`supersedes unknown decision ${escapeRegex(decisionId)}`),
+    );
+  },
+);
+
 Then("no legacy Tonic files are created", async function (this: TonicWorld) {
   await assert.rejects(access(join(this.projectDirectory, "tonic.json")));
   await assert.rejects(access(join(this.projectDirectory, "tonic.lock")));
@@ -892,7 +978,7 @@ Then("no legacy Tonic files are created", async function (this: TonicWorld) {
 Then("the command reports only the supported commands", function (this: TonicWorld) {
   assert.match(
     commandOutput(this),
-    /Usage: tonic <test\|context\|check\|acknowledge>/,
+    /Usage: tonic <test\|context\|check\|acknowledge\|review>/,
   );
 });
 
@@ -1090,6 +1176,47 @@ function runGit({
     0,
     result.error?.message ?? `${result.stdout}${result.stderr}`,
   );
+}
+
+function runTonic({
+  arguments: arguments_,
+  projectDirectory,
+}: {
+  arguments: string[];
+  projectDirectory: string;
+}) {
+  return spawnSync(process.execPath, [cliPath, ...arguments_], {
+    cwd: projectDirectory,
+    encoding: "utf8",
+  });
+}
+
+async function writeDecision({
+  decisionId,
+  driver,
+  projectDirectory,
+  supersededDecisionId,
+}: {
+  decisionId: string;
+  driver: string;
+  projectDirectory: string;
+  supersededDecisionId?: string;
+}) {
+  await writeProjectFile({
+    content: [
+      `Decision ${decisionId} "Reliable confirmation delivery"`,
+      `Driven by ${driver}`,
+      "Choose durable storage of pending confirmations",
+      "Because accepted orders must survive delivery outages",
+      "Accept possible duplicate delivery",
+      supersededDecisionId ? `Supersedes ${supersededDecisionId}` : undefined,
+      "",
+    ]
+      .filter((line): line is string => line !== undefined)
+      .join("\n"),
+    projectDirectory,
+    relativePath: `decisions/${decisionId}.decision`,
+  });
 }
 
 async function linkTonicPackage({

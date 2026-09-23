@@ -7,8 +7,9 @@ import {
   readArtifactGherkin,
 } from "./compiled-context.js";
 import {
-  findDecisionsAffectedByWorkingTreeChanges,
-  type AffectedDecision,
+  findDecisionsRequiringReview,
+  reviewDecision,
+  type DecisionRequiringReview,
 } from "./decision-awareness.js";
 
 try {
@@ -42,15 +43,18 @@ async function run({
     case "acknowledge":
       await runAcknowledge({ commandArguments, projectDirectory });
       return;
+    case "review":
+      await runReview({ commandArguments, projectDirectory });
+      return;
     default:
-      throw new Error("Usage: tonic <test|context|check|acknowledge>");
+      throw new Error("Usage: tonic <test|context|check|acknowledge|review>");
   }
 }
 
 async function runCheck({ projectDirectory }: { projectDirectory: string }) {
   const [changes, affectedDecisions] = await Promise.all([
     findChangedCompiledRequirements({ projectDirectory }),
-    findDecisionsAffectedByWorkingTreeChanges({ projectDirectory }),
+    findDecisionsRequiringReview({ projectDirectory }),
   ]);
 
   for (const change of changes) {
@@ -72,21 +76,37 @@ async function runCheck({ projectDirectory }: { projectDirectory: string }) {
 
 function writeAffectedDecision({
   decision,
-  requirement,
-}: AffectedDecision): void {
+  drivers,
+}: DecisionRequiringReview): void {
   process.stdout.write(
     [
       `Reconsider decision ${decision.decision.id}: ${decision.decision.title}`,
-      `Driven by changed requirement ${requirement.id}`,
       "",
-      `Requirement source: ${requirement.uri}`,
-      requirement.content.trim(),
+      ...drivers.flatMap((driver) => [
+        `Driver source: ${driver.uri}`,
+        driver.content.trim(),
+        "",
+      ]),
       "",
       `Decision source: ${decision.uri}`,
       decision.content.trim(),
       "",
     ].join("\n"),
   );
+}
+
+async function runReview({
+  commandArguments,
+  projectDirectory,
+}: {
+  commandArguments: string[];
+  projectDirectory: string;
+}) {
+  const [decisionId, ...remainingArguments] = commandArguments;
+  if (!decisionId || remainingArguments.length > 0) {
+    throw new Error("Usage: tonic review <decision-id>");
+  }
+  await reviewDecision({ decisionId, projectDirectory });
 }
 
 async function runContext({

@@ -3,8 +3,10 @@
 ## Unreleased
 
 - Adds a standalone architecture-decision language with a distributable EBNF grammar and source-located AST.
-- Discovers `.decision` files and resolves their `Driven by requirement` relationships to tagged Gherkin.
-- Makes `tonic check` surface the complete live requirement and decision sources when a tracked Gherkin file differs from `HEAD`, without decision fingerprints or generated decision state.
+- Resolves decision drivers to tagged Gherkin, other decisions, or ordinary repository files.
+- Adds `tonic review`, which records compact per-decision review receipts for use in local verification and CI.
+- Makes `tonic check` reject unreviewed or stale active decisions and surface their complete live sources.
+- Validates decision supersession targets, branches, and cycles while preserving superseded decisions as history.
 
 ## 0.1.1 - 2026-09-22
 

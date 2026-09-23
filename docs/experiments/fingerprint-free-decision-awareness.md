@@ -29,6 +29,19 @@ This demonstrates deterministic knowledge discovery and context delivery. It
 does not yet demonstrate that an agent will make a better architectural choice;
 that requires a separate agent trial using this mechanism.
 
+## Follow-up
+
+The working-tree mechanism was useful for discovery but insufficient for
+enforcement. It became clean immediately after a commit, could not prove review
+in CI, and had no way to distinguish retaining a valid decision from forgetting
+to reconsider it.
+
+Tonic now records a compact, committed review receipt for each active decision.
+The receipt fingerprints the decision and its declared drivers; it is generated
+state rather than agent context. This allows `tonic check` to enforce review in
+both dirty working trees and clean CI checkouts. The original experiment remains
+documented here because it explains why the receipt mechanism was introduced.
+
 ## Boundaries
 
 - Only tracked working-tree changes relative to `HEAD` are considered.
